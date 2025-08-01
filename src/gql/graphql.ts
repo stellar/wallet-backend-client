@@ -13,8 +13,9 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
-  BigInt: { input: any; output: any; }
+  Int64: { input: any; output: any; }
   Time: { input: any; output: any; }
+  UInt32: { input: any; output: any; }
 };
 
 export type Account = {
@@ -54,10 +55,10 @@ export type MutationRegisterAccountArgs = {
 export type Operation = {
   __typename?: 'Operation';
   accounts: Array<Account>;
-  id: Scalars['String']['output'];
+  id: Scalars['Int64']['output'];
   ingestedAt: Scalars['Time']['output'];
   ledgerCreatedAt: Scalars['Time']['output'];
-  ledgerNumber: Scalars['Int']['output'];
+  ledgerNumber: Scalars['UInt32']['output'];
   operationType: OperationType;
   operationXdr: Scalars['String']['output'];
   stateChanges: Array<StateChange>;
@@ -68,7 +69,6 @@ export enum OperationType {
   AccountMerge = 'ACCOUNT_MERGE',
   AllowTrust = 'ALLOW_TRUST',
   BeginSponsoringFutureReserves = 'BEGIN_SPONSORING_FUTURE_RESERVES',
-  BumpFootprintExpiration = 'BUMP_FOOTPRINT_EXPIRATION',
   BumpSequence = 'BUMP_SEQUENCE',
   ChangeTrust = 'CHANGE_TRUST',
   ClaimClaimableBalance = 'CLAIM_CLAIMABLE_BALANCE',
@@ -78,6 +78,7 @@ export enum OperationType {
   CreateClaimableBalance = 'CREATE_CLAIMABLE_BALANCE',
   CreatePassiveSellOffer = 'CREATE_PASSIVE_SELL_OFFER',
   EndSponsoringFutureReserves = 'END_SPONSORING_FUTURE_RESERVES',
+  ExtendFootprintTtl = 'EXTEND_FOOTPRINT_TTL',
   Inflation = 'INFLATION',
   InvokeHostFunction = 'INVOKE_HOST_FUNCTION',
   LiquidityPoolDeposit = 'LIQUIDITY_POOL_DEPOSIT',
@@ -148,7 +149,7 @@ export type StateChange = {
   ingestedAt: Scalars['Time']['output'];
   keyValue?: Maybe<Scalars['String']['output']>;
   ledgerCreatedAt: Scalars['Time']['output'];
-  ledgerNumber: Scalars['Int']['output'];
+  ledgerNumber: Scalars['UInt32']['output'];
   liquidityPoolId?: Maybe<Scalars['String']['output']>;
   offerId?: Maybe<Scalars['String']['output']>;
   operation: Operation;
@@ -165,70 +166,39 @@ export type StateChange = {
 };
 
 export enum StateChangeCategory {
-  AccountCreated = 'ACCOUNT_CREATED',
-  AccountRemoved = 'ACCOUNT_REMOVED',
-  AccountUpdated = 'ACCOUNT_UPDATED',
-  ClaimableBalanceClaimed = 'CLAIMABLE_BALANCE_CLAIMED',
-  ClaimableBalanceCreated = 'CLAIMABLE_BALANCE_CREATED',
-  ClaimableBalanceRemoved = 'CLAIMABLE_BALANCE_REMOVED',
-  ConfigSettingCreated = 'CONFIG_SETTING_CREATED',
-  ConfigSettingRemoved = 'CONFIG_SETTING_REMOVED',
-  ConfigSettingUpdated = 'CONFIG_SETTING_UPDATED',
-  ContractCodeCreated = 'CONTRACT_CODE_CREATED',
-  ContractCodeRemoved = 'CONTRACT_CODE_REMOVED',
-  ContractCodeUpdated = 'CONTRACT_CODE_UPDATED',
-  ContractDataCreated = 'CONTRACT_DATA_CREATED',
-  ContractDataRemoved = 'CONTRACT_DATA_REMOVED',
-  ContractDataUpdated = 'CONTRACT_DATA_UPDATED',
-  DataCreated = 'DATA_CREATED',
-  DataRemoved = 'DATA_REMOVED',
-  DataUpdated = 'DATA_UPDATED',
-  ExpirationCreated = 'EXPIRATION_CREATED',
-  ExpirationRemoved = 'EXPIRATION_REMOVED',
-  ExpirationUpdated = 'EXPIRATION_UPDATED',
-  LiquidityPoolCreated = 'LIQUIDITY_POOL_CREATED',
-  LiquidityPoolRemoved = 'LIQUIDITY_POOL_REMOVED',
-  LiquidityPoolUpdated = 'LIQUIDITY_POOL_UPDATED',
-  OfferCreated = 'OFFER_CREATED',
-  OfferRemoved = 'OFFER_REMOVED',
-  OfferUpdated = 'OFFER_UPDATED',
-  SignerCreated = 'SIGNER_CREATED',
-  SignerRemoved = 'SIGNER_REMOVED',
-  SignerUpdated = 'SIGNER_UPDATED',
-  TrustlineCreated = 'TRUSTLINE_CREATED',
-  TrustlineRemoved = 'TRUSTLINE_REMOVED',
-  TrustlineUpdated = 'TRUSTLINE_UPDATED'
+  Allowance = 'ALLOWANCE',
+  Authorization = 'AUTHORIZATION',
+  Burn = 'BURN',
+  Contract = 'CONTRACT',
+  Credit = 'CREDIT',
+  Debit = 'DEBIT',
+  Flags = 'FLAGS',
+  Liability = 'LIABILITY',
+  Metadata = 'METADATA',
+  Mint = 'MINT',
+  SignatureThreshold = 'SIGNATURE_THRESHOLD',
+  Signer = 'SIGNER',
+  Sponsorship = 'SPONSORSHIP',
+  TrustlineFlags = 'TRUSTLINE_FLAGS',
+  Unsupported = 'UNSUPPORTED'
 }
 
 export enum StateChangeReason {
-  AccountMergeFrom = 'ACCOUNT_MERGE_FROM',
-  AccountMergeTo = 'ACCOUNT_MERGE_TO',
-  ClaimableBalanceClaimant = 'CLAIMABLE_BALANCE_CLAIMANT',
-  ClaimableBalanceCreated = 'CLAIMABLE_BALANCE_CREATED',
-  ClaimableBalanceUpdated = 'CLAIMABLE_BALANCE_UPDATED',
-  ConfigSettingCreated = 'CONFIG_SETTING_CREATED',
-  ConfigSettingRemoved = 'CONFIG_SETTING_REMOVED',
-  ConfigSettingUpdated = 'CONFIG_SETTING_UPDATED',
-  ContractCodeCreated = 'CONTRACT_CODE_CREATED',
-  ContractCodeRemoved = 'CONTRACT_CODE_REMOVED',
-  ContractCodeUpdated = 'CONTRACT_CODE_UPDATED',
-  ContractDataCreated = 'CONTRACT_DATA_CREATED',
-  ContractDataRemoved = 'CONTRACT_DATA_REMOVED',
-  ContractDataUpdated = 'CONTRACT_DATA_UPDATED',
-  ExpirationCreated = 'EXPIRATION_CREATED',
-  ExpirationRemoved = 'EXPIRATION_REMOVED',
-  ExpirationUpdated = 'EXPIRATION_UPDATED',
-  LiquidityPoolCreated = 'LIQUIDITY_POOL_CREATED',
-  LiquidityPoolRemoved = 'LIQUIDITY_POOL_REMOVED',
-  LiquidityPoolUpdated = 'LIQUIDITY_POOL_UPDATED',
-  OfferCreated = 'OFFER_CREATED',
-  OfferRemoved = 'OFFER_REMOVED',
-  OfferUpdated = 'OFFER_UPDATED',
-  PaymentFrom = 'PAYMENT_FROM',
-  PaymentTo = 'PAYMENT_TO',
-  TrustlineCreated = 'TRUSTLINE_CREATED',
-  TrustlineRemoved = 'TRUSTLINE_REMOVED',
-  TrustlineUpdated = 'TRUSTLINE_UPDATED'
+  Add = 'ADD',
+  Buy = 'BUY',
+  Clear = 'CLEAR',
+  Consume = 'CONSUME',
+  DataEntry = 'DATA_ENTRY',
+  Deploy = 'DEPLOY',
+  High = 'HIGH',
+  HomeDomain = 'HOME_DOMAIN',
+  Invoke = 'INVOKE',
+  Low = 'LOW',
+  Medium = 'MEDIUM',
+  Remove = 'REMOVE',
+  Sell = 'SELL',
+  Set = 'SET',
+  Update = 'UPDATE'
 }
 
 export type Transaction = {
@@ -238,7 +208,7 @@ export type Transaction = {
   hash: Scalars['String']['output'];
   ingestedAt: Scalars['Time']['output'];
   ledgerCreatedAt: Scalars['Time']['output'];
-  ledgerNumber: Scalars['Int']['output'];
+  ledgerNumber: Scalars['UInt32']['output'];
   metaXdr: Scalars['String']['output'];
   operations: Array<Operation>;
   resultXdr: Scalars['String']['output'];

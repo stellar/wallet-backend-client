@@ -1,8 +1,10 @@
 # GraphQL Schema for Wallet Backend
-# This schema is extracted from the wallet-backend project
+# This schema matches the actual wallet-backend implementation
 
+# Custom scalars
 scalar Time
-scalar BigInt
+scalar UInt32
+scalar Int64
 
 type Query {
     transactionByHash(hash: String!): Transaction
@@ -22,7 +24,7 @@ type Transaction {
     envelopeXdr: String!
     resultXdr: String!
     metaXdr: String!
-    ledgerNumber: Int!
+    ledgerNumber: UInt32!
     ledgerCreatedAt: Time!
     ingestedAt: Time!
     operations: [Operation!]!
@@ -31,10 +33,10 @@ type Transaction {
 }
 
 type Operation {
-    id: String!
+    id: Int64!
     operationType: OperationType!
     operationXdr: String!
-    ledgerNumber: Int!
+    ledgerNumber: UInt32!
     ledgerCreatedAt: Time!
     ingestedAt: Time!
     transaction: Transaction!
@@ -54,7 +56,7 @@ type StateChange {
     accountId: String!
     stateChangeCategory: StateChangeCategory!
     stateChangeReason: StateChangeReason
-    ledgerNumber: Int!
+    ledgerNumber: UInt32!
     ledgerCreatedAt: Time!
     ingestedAt: Time!
     tokenId: String
@@ -96,8 +98,10 @@ enum OperationType {
     CREATE_ACCOUNT
     PAYMENT
     PATH_PAYMENT_STRICT_RECEIVE
+    PATH_PAYMENT_STRICT_SEND
     MANAGE_SELL_OFFER
     CREATE_PASSIVE_SELL_OFFER
+    MANAGE_BUY_OFFER
     SET_OPTIONS
     CHANGE_TRUST
     ALLOW_TRUST
@@ -105,8 +109,6 @@ enum OperationType {
     INFLATION
     MANAGE_DATA
     BUMP_SEQUENCE
-    MANAGE_BUY_OFFER
-    PATH_PAYMENT_STRICT_SEND
     CREATE_CLAIMABLE_BALANCE
     CLAIM_CLAIMABLE_BALANCE
     BEGIN_SPONSORING_FUTURE_RESERVES
@@ -118,73 +120,42 @@ enum OperationType {
     LIQUIDITY_POOL_DEPOSIT
     LIQUIDITY_POOL_WITHDRAW
     INVOKE_HOST_FUNCTION
-    BUMP_FOOTPRINT_EXPIRATION
+    EXTEND_FOOTPRINT_TTL
     RESTORE_FOOTPRINT
 }
 
 enum StateChangeCategory {
-    ACCOUNT_CREATED
-    ACCOUNT_REMOVED
-    ACCOUNT_UPDATED
-    TRUSTLINE_CREATED
-    TRUSTLINE_REMOVED
-    TRUSTLINE_UPDATED
-    OFFER_CREATED
-    OFFER_REMOVED
-    OFFER_UPDATED
-    DATA_CREATED
-    DATA_REMOVED
-    DATA_UPDATED
-    SIGNER_CREATED
-    SIGNER_REMOVED
-    SIGNER_UPDATED
-    CLAIMABLE_BALANCE_CREATED
-    CLAIMABLE_BALANCE_CLAIMED
-    CLAIMABLE_BALANCE_REMOVED
-    LIQUIDITY_POOL_CREATED
-    LIQUIDITY_POOL_REMOVED
-    LIQUIDITY_POOL_UPDATED
-    CONTRACT_DATA_CREATED
-    CONTRACT_DATA_REMOVED
-    CONTRACT_DATA_UPDATED
-    CONTRACT_CODE_CREATED
-    CONTRACT_CODE_REMOVED
-    CONTRACT_CODE_UPDATED
-    CONFIG_SETTING_CREATED
-    CONFIG_SETTING_REMOVED
-    CONFIG_SETTING_UPDATED
-    EXPIRATION_CREATED
-    EXPIRATION_REMOVED
-    EXPIRATION_UPDATED
+    DEBIT
+    CREDIT
+    MINT
+    BURN
+    SIGNER
+    SIGNATURE_THRESHOLD
+    METADATA
+    FLAGS
+    LIABILITY
+    TRUSTLINE_FLAGS
+    ALLOWANCE
+    SPONSORSHIP
+    CONTRACT
+    AUTHORIZATION
+    UNSUPPORTED
 }
 
 enum StateChangeReason {
-    ACCOUNT_MERGE_FROM
-    ACCOUNT_MERGE_TO
-    CLAIMABLE_BALANCE_CLAIMANT
-    CLAIMABLE_BALANCE_CREATED
-    CLAIMABLE_BALANCE_UPDATED
-    CONTRACT_DATA_CREATED
-    CONTRACT_DATA_REMOVED
-    CONTRACT_DATA_UPDATED
-    CONTRACT_CODE_CREATED
-    CONTRACT_CODE_REMOVED
-    CONTRACT_CODE_UPDATED
-    CONFIG_SETTING_CREATED
-    CONFIG_SETTING_REMOVED
-    CONFIG_SETTING_UPDATED
-    EXPIRATION_CREATED
-    EXPIRATION_REMOVED
-    EXPIRATION_UPDATED
-    LIQUIDITY_POOL_CREATED
-    LIQUIDITY_POOL_REMOVED
-    LIQUIDITY_POOL_UPDATED
-    OFFER_CREATED
-    OFFER_REMOVED
-    OFFER_UPDATED
-    PAYMENT_FROM
-    PAYMENT_TO
-    TRUSTLINE_CREATED
-    TRUSTLINE_REMOVED
-    TRUSTLINE_UPDATED
+    ADD
+    REMOVE
+    UPDATE
+    LOW
+    MEDIUM
+    HIGH
+    HOME_DOMAIN
+    SET
+    CLEAR
+    SELL
+    BUY
+    DATA_ENTRY
+    CONSUME
+    DEPLOY
+    INVOKE
 } 
