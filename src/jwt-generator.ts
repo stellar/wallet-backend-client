@@ -106,12 +106,12 @@ export class JwtGenerator {
     // Create the JSON body that will be sent in the request
     // Match exactly what graphql-request sends: { query, variables, operationName }
     
-    // Extract operation name from query
+    // Extract operation name from query or mutation
     let operationName: string | undefined;
     try {
-      // Simple regex to extract operation name from "query OperationName(...)"
-      const match = query.match(/^query\s+(\w+)/);
-      operationName = match ? match[1] : undefined;
+      // Simple regex to extract operation name from "query OperationName(...)" or "mutation OperationName(...)"
+      const match = query.trim().match(/^(query|mutation)\s+(\w+)/);
+      operationName = match ? match[2] : undefined;
     } catch (err) {
       // If parsing fails, operationName will be undefined
     }
