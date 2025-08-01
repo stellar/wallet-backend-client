@@ -130,12 +130,13 @@ describe('JwtGenerator', () => {
       const parts = jwt.split('.');
       const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
 
-      // The body hash should match the hash of the JSON body
-      const expectedBody = JSON.stringify({ query, variables });
+      // The body hash should match the hash of the JSON body (including operation name)
+      const expectedBody = JSON.stringify({ query, variables, operationName: 'GetTransactions' });
       const crypto = require('crypto');
       const expectedHash = crypto.createHash('sha256').update(expectedBody).digest('hex');
 
       expect(payload.bodyHash).toBe(expectedHash);
+      // The expected hash for the body with operation name is: aff455d82125f6e6e95062e2c675c731ad5e84f6b5978a58cd4af5efc2a6de17
     });
   });
 }); 

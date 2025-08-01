@@ -50,20 +50,11 @@ describe('WalletBackendClient Integration', () => {
     it('should successfully authenticate with the server', async () => {
       const query = 'query { __schema { queryType { name } } }';
       
-      try {
-        const result = await client.rawRequest(query);
-        expect(result.data).toBeDefined();
-        expect(result.data.__schema).toBeDefined();
-        expect(result.data.__schema.queryType).toBeDefined();
-        expect(result.data.__schema.queryType.name).toBe('Query');
-      } catch (error: any) {
-        // If introspection is disabled, this is expected
-        if (error.response?.errors) {
-          expect(error.response.errors).toBeDefined();
-        } else {
-          throw error;
-        }
-      }
+      const result = await client.rawRequest(query);
+      expect(result.data).toBeDefined();
+      expect(result.data.__schema).toBeDefined();
+      expect(result.data.__schema.queryType).toBeDefined();
+      expect(result.data.__schema.queryType.name).toBe('Query');
     });
 
     it('should generate valid JWTs for authentication', async () => {
@@ -90,39 +81,18 @@ describe('WalletBackendClient Integration', () => {
     it('should handle successful queries', async () => {
       const query = 'query { __schema { queryType { name } } }';
       
-      try {
-        const result = await client.request(query);
-        expect(result).toBeDefined();
-        expect(result.__schema).toBeDefined();
-      } catch (error: any) {
-        // If introspection is disabled, this is expected
-        if (error.response?.errors) {
-          expect(error.response.errors).toBeDefined();
-        } else {
-          throw error;
-        }
-      }
+      const result = await client.request(query);
+      expect(result).toBeDefined();
+      expect(result.__schema).toBeDefined();
     });
 
     it('should handle queries with variables', async () => {
       const query = 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }';
       const variables = { limit: 5 };
       
-      try {
-        const result = await client.request(query, variables);
-        expect(result).toBeDefined();
-        expect(Array.isArray(result.transactions)).toBe(true);
-      } catch (error: any) {
-        // If no transactions exist or authentication fails, this is expected
-        if (error.response?.errors) {
-          expect(error.response.errors).toBeDefined();
-        } else if (error.response?.error === 'Not authorized.') {
-          // This is also expected if the query requires different permissions
-          expect(error.response.error).toBe('Not authorized.');
-        } else {
-          throw error;
-        }
-      }
+      const result = await client.request(query, variables);
+      expect(result).toBeDefined();
+      expect(Array.isArray(result.transactions)).toBe(true);
     });
 
     it('should handle GraphQL errors gracefully', async () => {

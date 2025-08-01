@@ -67,7 +67,7 @@ class NodeCryptoUtils implements CryptoUtils {
 // Universal buffer utilities
 export class UniversalBuffer {
   static from(data: string | Uint8Array, encoding?: string): Uint8Array {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.window === 'undefined') {
       // Node.js environment
       const { Buffer } = require('buffer');
       return Buffer.from(data, encoding as any);
@@ -82,7 +82,7 @@ export class UniversalBuffer {
   }
 
   static toString(buffer: Uint8Array, encoding: string): string {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.window === 'undefined') {
       // Node.js environment
       const { Buffer } = require('buffer');
       return Buffer.from(buffer).toString(encoding);
@@ -106,7 +106,7 @@ export class UniversalBuffer {
 
 // Detect environment and provide appropriate crypto implementation
 export function getCryptoUtils(): CryptoUtils {
-  if (typeof window === 'undefined') {
+  if (typeof globalThis !== 'undefined' && typeof globalThis.window === 'undefined') {
     // Node.js environment
     return new NodeCryptoUtils();
   } else {
@@ -117,7 +117,7 @@ export function getCryptoUtils(): CryptoUtils {
 
 // Synchronous hash function for browser compatibility
 export async function hashString(data: string): Promise<string> {
-  if (typeof window === 'undefined') {
+  if (typeof globalThis !== 'undefined' && typeof globalThis.window === 'undefined') {
     // Node.js environment
     const crypto = require('crypto');
     return crypto.createHash('sha256').update(data).digest('hex');

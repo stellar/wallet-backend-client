@@ -55,7 +55,7 @@ export class JwtGenerator {
 
   private generateRandomHex(length: number): string {
     const array = new Uint8Array(length);
-    if (typeof window === 'undefined') {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.window === 'undefined') {
       // Node.js environment
       const crypto = require('crypto');
       crypto.randomFillSync(array);
@@ -86,7 +86,7 @@ export class JwtGenerator {
     
     // Convert to Buffer for Stellar SDK compatibility
     let dataBuffer: Buffer;
-    if (typeof window === 'undefined') {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.window === 'undefined') {
       // Node.js environment
       const { Buffer } = require('buffer');
       dataBuffer = Buffer.from(data, 'utf8');
@@ -104,7 +104,28 @@ export class JwtGenerator {
 
   public async generateJWT(query: string, variables?: Record<string, any>, audience: string = 'api'): Promise<string> {
     // Create the JSON body that will be sent in the request
-    const body = JSON.stringify({ query, variables });
+    // Match exactly what graphql-request sends: { query, variables, operationName }
+    
+    // Extract operation name from query
+    let operationName: string | undefined;
+    try {
+      // Simple regex to extract operation name from "query OperationName(...)"
+      const match = query.match(/^query\s+(\w+)/);
+      operationName = match ? match[1] : undefined;
+    } catch (err) {
+      // If parsing fails, operationName will be undefined
+    }
+    
+    // Build the body object matching graphql-request format
+    const bodyObj: any = { query };
+    if (variables !== undefined) {
+      bodyObj.variables = variables;
+    }
+    if (operationName !== undefined) {
+      bodyObj.operationName = operationName;
+    }
+    
+    const body = JSON.stringify(bodyObj);
     const bodyHash = await this.hashBody(body);
     const header = this.createJwtHeader();
     const payload = this.createJwtPayload(audience, 'POST /graphql/query', bodyHash);
