@@ -1,4 +1,7 @@
 // Universal crypto utilities that work in both Node.js and browser environments
+// Uses stellar-base hashing utilities for consistency with Stellar ecosystem
+
+import { hash } from '@stellar/stellar-sdk';
 
 export interface CryptoUtils {
   randomBytes(length: number): Uint8Array;
@@ -115,20 +118,22 @@ export function getCryptoUtils(): CryptoUtils {
   }
 }
 
-// Synchronous hash function for browser compatibility
+// Use stellar-base hash function for consistency
 export async function hashString(data: string): Promise<string> {
+  // stellar-base hash function works universally
+  const dataBuffer = UniversalBuffer.from(data, 'utf8');
+  
+  // Convert Uint8Array to Buffer for stellar-base compatibility
+  let buffer: Buffer;
   if (typeof window === 'undefined') {
     // Node.js environment
-    const crypto = require('crypto');
-    return crypto.createHash('sha256').update(data).digest('hex');
+    const { Buffer } = require('buffer');
+    buffer = Buffer.from(dataBuffer);
   } else {
-    // Browser environment
-    const encoder = new TextEncoder();
-    const dataBuffer = encoder.encode(data);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-    const hashArray = new Uint8Array(hashBuffer);
-    return Array.from(hashArray)
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+    // Browser environment - stellar-base should handle Uint8Array
+    buffer = dataBuffer as any;
   }
+  
+  const hashBuffer = hash(buffer);
+  return UniversalBuffer.toString(hashBuffer, 'hex');
 } 
