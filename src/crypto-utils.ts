@@ -1,7 +1,4 @@
 // Universal crypto utilities that work in both Node.js and browser environments
-// Uses stellar-base hashing utilities for consistency with Stellar ecosystem
-
-import { hash } from '@stellar/stellar-sdk';
 
 export interface CryptoUtils {
   randomBytes(length: number): Uint8Array;
@@ -63,9 +60,6 @@ class NodeCryptoUtils implements CryptoUtils {
   }
 
   createHash(algorithm: string): Hash {
-    if (algorithm !== 'sha256') {
-      throw new Error(`Unsupported hash algorithm: ${algorithm}`);
-    }
     return this.crypto.createHash(algorithm);
   }
 }
@@ -76,8 +70,7 @@ export class UniversalBuffer {
     if (typeof window === 'undefined') {
       // Node.js environment
       const { Buffer } = require('buffer');
-      const buffer = Buffer.from(data, encoding as any);
-      return new Uint8Array(buffer);
+      return Buffer.from(data, encoding as any);
     } else {
       // Browser environment
       if (typeof data === 'string') {
@@ -122,21 +115,20 @@ export function getCryptoUtils(): CryptoUtils {
   }
 }
 
-// Use stellar-base hash function for consistency
+// Synchronous hash function for browser compatibility
 export async function hashString(data: string): Promise<string> {
-  // stellar-base hash function works universally
-  const dataBuffer = UniversalBuffer.from(data, 'utf8');
-  
-  // Convert Uint8Array to Buffer for stellar-base compatibility
   if (typeof window === 'undefined') {
     // Node.js environment
-    const { Buffer } = require('buffer');
-    const buffer = Buffer.from(dataBuffer);
-    const hashBuffer = hash(buffer);
-    return UniversalBuffer.toString(hashBuffer, 'hex');
+    const crypto = require('crypto');
+    return crypto.createHash('sha256').update(data).digest('hex');
   } else {
-    // Browser environment - stellar-base should handle Uint8Array
-    const hashBuffer = hash(dataBuffer as any);
-    return UniversalBuffer.toString(hashBuffer, 'hex');
+    // Browser environment
+    const encoder = new TextEncoder();
+    const dataBuffer = encoder.encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashArray = new Uint8Array(hashBuffer);
+    return Array.from(hashArray)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
   }
 } 

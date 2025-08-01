@@ -155,27 +155,26 @@ describe('crypto-utils', () => {
       const cryptoUtils = getCryptoUtils();
       expect(() => {
         cryptoUtils.createHash('invalid-algorithm');
-      }).toThrow('Unsupported hash algorithm: invalid-algorithm');
+      }).toThrow('Digest method not supported');
     });
 
     it('should handle null/undefined inputs gracefully', async () => {
-      // Test with null string (should be handled by stellar-base)
+      // Test with empty string (should be handled by standard crypto)
       await expect(hashString('')).resolves.toBeDefined();
     });
   });
 
-  describe('Integration with stellar-base', () => {
-    it('should produce same hash as stellar-base directly', async () => {
-      const { hash } = require('@stellar/stellar-sdk');
+  describe('Standard SHA-256 hashing', () => {
+    it('should produce standard SHA-256 hash', async () => {
       const input = 'test string';
       
       // Our implementation
       const ourHash = await hashString(input);
       
-      // Direct stellar-base hash
-      const directHash = hash(Buffer.from(input, 'utf8')).toString('hex');
+      // Expected SHA-256 hash for "test string"
+      const expectedHash = 'd5579c46dfcc7f18207013e65b44e4cb4e2c2298f4ac457ba8f82743f31e930b';
       
-      expect(ourHash).toBe(directHash);
+      expect(ourHash).toBe(expectedHash);
     });
 
     it('should handle various input types consistently', async () => {

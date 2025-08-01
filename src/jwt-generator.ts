@@ -8,14 +8,16 @@ export interface JwtHeader {
 }
 
 export interface JwtPayload {
-  iss: string;
-  sub: string;
-  aud: string[];
-  iat: number;
-  exp: number;
-  jti: string;
+  // Custom claims that match the wallet backend
   bodyHash: string;
   methodAndPath: string;
+  // Standard JWT claims (matching Go JWT library)
+  iss: string;  // Issuer
+  sub: string;  // Subject
+  aud: string[]; // Audience
+  iat: number;  // Issued At
+  exp: number;  // Expiration Time
+  jti: string;  // JWT ID
 }
 
 export class JwtGenerator {
@@ -38,14 +40,16 @@ export class JwtGenerator {
   private createJwtPayload(audience: string, methodAndPath: string, bodyHash: string): JwtPayload {
     const now = Math.floor(Date.now() / 1000);
     return {
+      // Custom claims
+      bodyHash: bodyHash,
+      methodAndPath: methodAndPath,
+      // Standard JWT claims
       iss: this.publicKey,
       sub: this.publicKey,
-      aud: [audience], // Array of strings as expected by Go server
+      aud: [audience],
       iat: now,
       exp: now + 3, // 3 seconds expiration (within 5s limit)
-      jti: this.generateRandomHex(16),
-      bodyHash: bodyHash,
-      methodAndPath: methodAndPath
+      jti: this.generateRandomHex(16)
     };
   }
 
