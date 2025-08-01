@@ -1,0 +1,190 @@
+# GraphQL Schema for Wallet Backend
+# This schema is extracted from the wallet-backend project
+
+scalar Time
+scalar BigInt
+
+type Query {
+    transactionByHash(hash: String!): Transaction
+    transactions(limit: Int): [Transaction!]!
+    account(address: String!): Account
+    operations(limit: Int): [Operation!]!
+    stateChanges(limit: Int): [StateChange!]!
+}
+
+type Mutation {
+    registerAccount(input: RegisterAccountInput!): RegisterAccountPayload!
+    deregisterAccount(input: DeregisterAccountInput!): DeregisterAccountPayload!
+}
+
+type Transaction {
+    hash: String!
+    envelopeXdr: String!
+    resultXdr: String!
+    metaXdr: String!
+    ledgerNumber: Int!
+    ledgerCreatedAt: Time!
+    ingestedAt: Time!
+    operations: [Operation!]!
+    accounts: [Account!]!
+    stateChanges: [StateChange!]!
+}
+
+type Operation {
+    id: String!
+    operationType: OperationType!
+    operationXdr: String!
+    ledgerNumber: Int!
+    ledgerCreatedAt: Time!
+    ingestedAt: Time!
+    transaction: Transaction!
+    accounts: [Account!]!
+    stateChanges: [StateChange!]!
+}
+
+type Account {
+    address: String!
+    transactions: [Transaction!]!
+    operations: [Operation!]!
+    stateChanges: [StateChange!]!
+}
+
+type StateChange {
+    id: String!
+    accountId: String!
+    stateChangeCategory: StateChangeCategory!
+    stateChangeReason: StateChangeReason
+    ledgerNumber: Int!
+    ledgerCreatedAt: Time!
+    ingestedAt: Time!
+    tokenId: String
+    amount: String
+    claimableBalanceId: String
+    liquidityPoolId: String
+    offerId: String
+    signerAccountId: String
+    spenderAccountId: String
+    sponsoredAccountId: String
+    sponsorAccountId: String
+    signerWeights: String
+    thresholds: String
+    flags: [String!]!
+    keyValue: String
+    operation: Operation!
+    transaction: Transaction!
+}
+
+type RegisterAccountPayload {
+    success: Boolean!
+    account: Account
+}
+
+type DeregisterAccountPayload {
+    success: Boolean!
+    message: String
+}
+
+input RegisterAccountInput {
+    address: String!
+}
+
+input DeregisterAccountInput {
+    address: String!
+}
+
+enum OperationType {
+    CREATE_ACCOUNT
+    PAYMENT
+    PATH_PAYMENT_STRICT_RECEIVE
+    MANAGE_SELL_OFFER
+    CREATE_PASSIVE_SELL_OFFER
+    SET_OPTIONS
+    CHANGE_TRUST
+    ALLOW_TRUST
+    ACCOUNT_MERGE
+    INFLATION
+    MANAGE_DATA
+    BUMP_SEQUENCE
+    MANAGE_BUY_OFFER
+    PATH_PAYMENT_STRICT_SEND
+    CREATE_CLAIMABLE_BALANCE
+    CLAIM_CLAIMABLE_BALANCE
+    BEGIN_SPONSORING_FUTURE_RESERVES
+    END_SPONSORING_FUTURE_RESERVES
+    REVOKE_SPONSORSHIP
+    CLAWBACK
+    CLAWBACK_CLAIMABLE_BALANCE
+    SET_TRUST_LINE_FLAGS
+    LIQUIDITY_POOL_DEPOSIT
+    LIQUIDITY_POOL_WITHDRAW
+    INVOKE_HOST_FUNCTION
+    BUMP_FOOTPRINT_EXPIRATION
+    RESTORE_FOOTPRINT
+}
+
+enum StateChangeCategory {
+    ACCOUNT_CREATED
+    ACCOUNT_REMOVED
+    ACCOUNT_UPDATED
+    TRUSTLINE_CREATED
+    TRUSTLINE_REMOVED
+    TRUSTLINE_UPDATED
+    OFFER_CREATED
+    OFFER_REMOVED
+    OFFER_UPDATED
+    DATA_CREATED
+    DATA_REMOVED
+    DATA_UPDATED
+    SIGNER_CREATED
+    SIGNER_REMOVED
+    SIGNER_UPDATED
+    CLAIMABLE_BALANCE_CREATED
+    CLAIMABLE_BALANCE_CLAIMED
+    CLAIMABLE_BALANCE_REMOVED
+    LIQUIDITY_POOL_CREATED
+    LIQUIDITY_POOL_REMOVED
+    LIQUIDITY_POOL_UPDATED
+    CONTRACT_DATA_CREATED
+    CONTRACT_DATA_REMOVED
+    CONTRACT_DATA_UPDATED
+    CONTRACT_CODE_CREATED
+    CONTRACT_CODE_REMOVED
+    CONTRACT_CODE_UPDATED
+    CONFIG_SETTING_CREATED
+    CONFIG_SETTING_REMOVED
+    CONFIG_SETTING_UPDATED
+    EXPIRATION_CREATED
+    EXPIRATION_REMOVED
+    EXPIRATION_UPDATED
+}
+
+enum StateChangeReason {
+    ACCOUNT_MERGE_FROM
+    ACCOUNT_MERGE_TO
+    CLAIMABLE_BALANCE_CLAIMANT
+    CLAIMABLE_BALANCE_CREATED
+    CLAIMABLE_BALANCE_UPDATED
+    CONTRACT_DATA_CREATED
+    CONTRACT_DATA_REMOVED
+    CONTRACT_DATA_UPDATED
+    CONTRACT_CODE_CREATED
+    CONTRACT_CODE_REMOVED
+    CONTRACT_CODE_UPDATED
+    CONFIG_SETTING_CREATED
+    CONFIG_SETTING_REMOVED
+    CONFIG_SETTING_UPDATED
+    EXPIRATION_CREATED
+    EXPIRATION_REMOVED
+    EXPIRATION_UPDATED
+    LIQUIDITY_POOL_CREATED
+    LIQUIDITY_POOL_REMOVED
+    LIQUIDITY_POOL_UPDATED
+    OFFER_CREATED
+    OFFER_REMOVED
+    OFFER_UPDATED
+    PAYMENT_FROM
+    PAYMENT_TO
+    TRUSTLINE_CREATED
+    TRUSTLINE_REMOVED
+    TRUSTLINE_UPDATED
+} 
