@@ -1,6 +1,6 @@
 {
   "name": "@stellar/wallet-backend-client",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Universal TypeScript GraphQL client for Stellar Wallet Backend with JWT authentication",
   "main": "dist/index.js",
   "module": "dist/index.js",
