@@ -63,6 +63,9 @@ class NodeCryptoUtils implements CryptoUtils {
   }
 
   createHash(algorithm: string): Hash {
+    if (algorithm !== 'sha256') {
+      throw new Error(`Unsupported hash algorithm: ${algorithm}`);
+    }
     return this.crypto.createHash(algorithm);
   }
 }
@@ -73,7 +76,8 @@ export class UniversalBuffer {
     if (typeof window === 'undefined') {
       // Node.js environment
       const { Buffer } = require('buffer');
-      return Buffer.from(data, encoding as any);
+      const buffer = Buffer.from(data, encoding as any);
+      return new Uint8Array(buffer);
     } else {
       // Browser environment
       if (typeof data === 'string') {
@@ -124,16 +128,15 @@ export async function hashString(data: string): Promise<string> {
   const dataBuffer = UniversalBuffer.from(data, 'utf8');
   
   // Convert Uint8Array to Buffer for stellar-base compatibility
-  let buffer: Buffer;
   if (typeof window === 'undefined') {
     // Node.js environment
     const { Buffer } = require('buffer');
-    buffer = Buffer.from(dataBuffer);
+    const buffer = Buffer.from(dataBuffer);
+    const hashBuffer = hash(buffer);
+    return UniversalBuffer.toString(hashBuffer, 'hex');
   } else {
     // Browser environment - stellar-base should handle Uint8Array
-    buffer = dataBuffer as any;
+    const hashBuffer = hash(dataBuffer as any);
+    return UniversalBuffer.toString(hashBuffer, 'hex');
   }
-  
-  const hashBuffer = hash(buffer);
-  return UniversalBuffer.toString(hashBuffer, 'hex');
 } 
