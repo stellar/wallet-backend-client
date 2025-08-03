@@ -16,6 +16,13 @@
     "dist",
     "README.md"
   ],
+  "engines": {
+    "node": ">=18.14.0"
+  },
+  "browser": {
+    "crypto": false,
+    "buffer": false
+  },
   "scripts": {
     "build": "npm run codegen && tsc",
     "codegen": "graphql-codegen --config codegen.ts",
@@ -29,17 +36,14 @@
   },
   "keywords": [
     "stellar",
-    "graphql",
     "wallet",
-    "jwt",
-    "authentication",
-    "typescript",
-    "client",
-    "universal",
-    "browser",
-    "react",
-    "react-native"
+    "wallet-backend",
+    "graphql",
+    "typescript"
   ],
+  "sideEffects": false,
+  "unpkg": "dist/index.js",
+  "jsdelivr": "dist/index.js",
   "author": "Stellar Development Foundation",
   "license": "Apache-2.0",
   "repository": {
@@ -67,9 +71,6 @@
     "jsdom": "^23.0.1",
     "text-encoding": "^0.7.0",
     "ts-jest": "^29.1.1",
-    "ts-loader": "^9.5.1",
-    "typescript": "^5.0.0",
-    "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4"
+    "typescript": "^5.0.0"
   }
 }
