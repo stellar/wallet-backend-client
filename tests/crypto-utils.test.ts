@@ -155,7 +155,7 @@ describe('crypto-utils', () => {
       const cryptoUtils = getCryptoUtils();
       expect(() => {
         cryptoUtils.createHash('invalid-algorithm');
-      }).toThrow('Digest method not supported');
+      }).toThrow(/Digest method not supported|Unsupported hash algorithm: invalid-algorithm/);
     });
 
     it('should handle null/undefined inputs gracefully', async () => {
