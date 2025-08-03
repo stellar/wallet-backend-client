@@ -120,6 +120,26 @@ npm run test:coverage
 - **Error Handling**: Test various error scenarios
 - **Authentication**: Test JWT generation and validation
 
+### Integration Test Configuration
+
+Integration tests require a running wallet backend server and proper authentication. To configure:
+
+1. **Create a `.env` file** in the project root:
+   ```bash
+   CLIENT_AUTH_PRIVATE_KEY=your-stellar-private-key-here
+   GRAPHQL_BASE_URL=http://localhost:8001/graphql/query
+   JWT_AUDIENCE=api
+   ```
+
+2. **Start the wallet backend server** on `http://localhost:8001`
+
+3. **Run integration tests**:
+   ```bash
+   npm test
+   ```
+
+**Note**: All environment variables are required for integration tests to run.
+
 ## Generated Client
 
 The generated client includes:

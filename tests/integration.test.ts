@@ -1,13 +1,29 @@
+import 'dotenv/config';
 import { WalletBackendClient } from '../src/graphql-client';
 
 // Integration tests - these require the wallet backend server to be running
 describe('WalletBackendClient Integration', () => {
   let client: WalletBackendClient;
-  const testPrivateKey = process.env.CLIENT_AUTH_PRIVATE_KEY || 'SDFCVJQCCN3BVKHYS5MIE6OJCAGCE3KCZWZDXD2AMZUJ5Z4J7YTOPSOC';
-  const testBaseUrl = 'http://localhost:8001/graphql/query';
-  const testAudience = 'api';
+  let testPrivateKey: string;
+  let testBaseUrl: string;
+  let testAudience: string;
 
   beforeAll(() => {
+    // Check required environment variables
+    if (!process.env.CLIENT_AUTH_PRIVATE_KEY) {
+      throw new Error('CLIENT_AUTH_PRIVATE_KEY environment variable is required for integration tests');
+    }
+    if (!process.env.GRAPHQL_BASE_URL) {
+      throw new Error('GRAPHQL_BASE_URL environment variable is required for integration tests');
+    }
+    if (!process.env.JWT_AUDIENCE) {
+      throw new Error('JWT_AUDIENCE environment variable is required for integration tests');
+    }
+
+    testPrivateKey = process.env.CLIENT_AUTH_PRIVATE_KEY;
+    testBaseUrl = process.env.GRAPHQL_BASE_URL;
+    testAudience = process.env.JWT_AUDIENCE;
+
     // Check if server is running
     const http = require('http');
     return new Promise<void>((resolve, reject) => {
@@ -110,6 +126,9 @@ describe('WalletBackendClient Integration', () => {
 
     it('should handle network errors gracefully', async () => {
       // Create a client with invalid URL to test network errors
+      if (!testPrivateKey) {
+        throw new Error('CLIENT_AUTH_PRIVATE_KEY environment variable is required for integration tests');
+      }
       const invalidClient = new WalletBackendClient(testPrivateKey, 'http://localhost:9999/graphql/query', testAudience);
       const query = 'query { __schema { queryType { name } } }';
       
@@ -137,31 +156,25 @@ describe('WalletBackendClient Integration', () => {
         }
       `;
       
+      // Generate a fresh Stellar key pair for testing
+      const { Keypair } = require('@stellar/stellar-sdk');
+      const keypair = Keypair.random();
+      const freshAddress = keypair.publicKey();
+      
       const variables = {
         input: {
-          address: 'GBJU5TE456SV7TTXVDQFLYFRLUHWFBPMUAFCECRI6DD3OF7IKRMMZUI5'
+          address: freshAddress
         }
       };
       
-      try {
-        const result = await client.request(mutation, variables);
-        expect(result).toBeDefined();
-        expect(result.registerAccount).toBeDefined();
-        expect(typeof result.registerAccount.success).toBe('boolean');
-        if (result.registerAccount.account) {
-          expect(result.registerAccount.account.address).toBeDefined();
-        }
-      } catch (error: any) {
-        // If the mutation fails due to authorization, that's expected
-        // But we should verify that the JWT was generated correctly
-        expect(error).toBeDefined();
-        if (error.response?.error === 'Not authorized.') {
-          // This is expected if the test key doesn't have mutation permissions
-          expect(error.response.error).toBe('Not authorized.');
-        } else {
-          // If it's a different error, re-throw it
-          throw error;
-        }
+      const result = await client.request(mutation, variables);
+      expect(result).toBeDefined();
+      expect(result.registerAccount).toBeDefined();
+      expect(typeof result.registerAccount.success).toBe('boolean');
+      expect(result.registerAccount.success).toBe(true);
+      if (result.registerAccount.account) {
+        expect(result.registerAccount.account.address).toBeDefined();
+        expect(result.registerAccount.account.address).toBe(freshAddress);
       }
     });
   });
