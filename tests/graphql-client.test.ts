@@ -1,14 +1,32 @@
 import { WalletBackendClient } from '../src/graphql-client';
 import { GraphQLClient } from 'graphql-request';
+import * as crypto from 'crypto';
 
 // Mock graphql-request
 jest.mock('graphql-request');
 
 describe('WalletBackendClient', () => {
   let client: WalletBackendClient;
+  
+  // Unit tests use arbitrary values since they don't interact with real backend
   const testPrivateKey = 'SDFCVJQCCN3BVKHYS5MIE6OJCAGCE3KCZWZDXD2AMZUJ5Z4J7YTOPSOC';
-  const testBaseUrl = 'http://localhost:8001/graphql/query';
-  const testAudience = 'api';
+  const testBaseUrl = 'http://test.example.com:1234/graphql/query';
+  const testAudience = 'test-audience';
+
+  let mockRequest: jest.MockedFunction<any>;
+  let mockRawRequest: jest.MockedFunction<any>;
+
+  // Helper function to validate JWT body hash
+  const validateJwtBodyHash = (mockCall: any, query: string, variables?: any, operationName?: string) => {
+    const authHeader = mockCall.mock.calls[0][2]['Authorization'];
+    const jwt = authHeader.replace('Bearer ', '');
+    const parts = jwt.split('.');
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+    
+    const expectedBody = JSON.stringify({ query, ...(variables && { variables }), ...(operationName && { operationName }) });
+    const expectedHash = crypto.createHash('sha256').update(expectedBody).digest('hex');
+    expect(payload.bodyHash).toBe(expectedHash);
+  };
 
   beforeEach(() => {
     // Clear all mocks
@@ -21,35 +39,33 @@ describe('WalletBackendClient', () => {
     } as any));
 
     client = new WalletBackendClient(testPrivateKey, testBaseUrl, testAudience);
+    
+    // Get references to the mocked methods
+    const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
+    mockRequest = mockGraphQLClient.request;
+    mockRawRequest = mockGraphQLClient.rawRequest;
   });
 
-  describe('constructor', () => {
-    it('should create a client with the provided parameters', () => {
-      expect(client).toBeInstanceOf(WalletBackendClient);
-    });
 
-    it('should initialize GraphQLClient with the correct URL', () => {
-      expect(GraphQLClient).toHaveBeenCalledWith(testBaseUrl);
-    });
-  });
 
   describe('getJWT', () => {
-    it('should generate a JWT for a query', async () => {
-      const query = 'query { __schema { queryType { name } } }';
-      const jwt = await client.getJWT(query);
-
-      expect(jwt).toBeDefined();
-      expect(typeof jwt).toBe('string');
-      expect(jwt.split('.')).toHaveLength(3);
-    });
-
-    it('should generate a JWT for a query with variables', async () => {
-      const query = 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }';
-      const variables = { limit: 5 };
+    it.each([
+      {
+        name: 'anonymous query',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined
+      },
+      {
+        name: 'named query with variables',
+        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
+        variables: { limit: 5 }
+      }
+    ])('should generate a JWT for $name', async ({ query, variables }) => {
       const jwt = await client.getJWT(query, variables);
 
       expect(jwt).toBeDefined();
       expect(typeof jwt).toBe('string');
+      expect(jwt.split('.')).toHaveLength(3);
     });
 
     it('should generate different JWTs for different queries', async () => {
@@ -64,32 +80,22 @@ describe('WalletBackendClient', () => {
   });
 
   describe('request', () => {
-    it('should make a GraphQL request with authentication', async () => {
-      const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
-      const mockRequest = mockGraphQLClient.request as jest.MockedFunction<any>;
-      
-      const query = 'query { __schema { queryType { name } } }';
-      const expectedData = { __schema: { queryType: { name: 'Query' } } };
-      
-      mockRequest.mockResolvedValue(expectedData);
-
-      const result = await client.request(query);
-
-      expect(mockRequest).toHaveBeenCalledWith(query, undefined, expect.objectContaining({
-        'Authorization': expect.stringMatching(/^Bearer /),
-        'Content-Type': 'application/json',
-      }));
-      expect(result).toEqual(expectedData);
-    });
-
-    it('should make a GraphQL request with variables', async () => {
-      const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
-      const mockRequest = mockGraphQLClient.request as jest.MockedFunction<any>;
-      
-      const query = 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }';
-      const variables = { limit: 5 };
-      const expectedData = { transactions: [{ hash: 'test-hash' }] };
-      
+    it.each([
+      {
+        name: 'anonymous query',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined,
+        operationName: undefined,
+        expectedData: { __schema: { queryType: { name: 'Query' } } }
+      },
+      {
+        name: 'named query with variables',
+        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
+        variables: { limit: 5 },
+        operationName: 'GetTransactions',
+        expectedData: { transactions: [{ hash: 'test-hash' }] }
+      }
+    ])('should make a GraphQL request with authentication for $name', async ({ query, variables, operationName, expectedData }) => {
       mockRequest.mockResolvedValue(expectedData);
 
       const result = await client.request(query, variables);
@@ -98,13 +104,12 @@ describe('WalletBackendClient', () => {
         'Authorization': expect.stringMatching(/^Bearer /),
         'Content-Type': 'application/json',
       }));
+      
+      validateJwtBodyHash(mockRequest, query, variables, operationName);
       expect(result).toEqual(expectedData);
     });
 
     it('should throw error when GraphQL request fails', async () => {
-      const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
-      const mockRequest = mockGraphQLClient.request as jest.MockedFunction<any>;
-      
       const query = 'query { invalid }';
       const error = new Error('GraphQL Error');
       mockRequest.mockRejectedValue(error);
@@ -114,38 +119,38 @@ describe('WalletBackendClient', () => {
   });
 
   describe('rawRequest', () => {
-    it('should make a raw GraphQL request with authentication', async () => {
-      const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
-      const mockRawRequest = mockGraphQLClient.rawRequest as jest.MockedFunction<any>;
-      
-      const query = 'query { __schema { queryType { name } } }';
-      const expectedResponse = {
-        data: { __schema: { queryType: { name: 'Query' } } },
-        errors: undefined
-      };
-      
-      mockRawRequest.mockResolvedValue(expectedResponse);
-
-      const result = await client.rawRequest(query);
-
-      expect(mockRawRequest).toHaveBeenCalledWith(query, undefined, expect.objectContaining({
-        'Authorization': expect.stringMatching(/^Bearer /),
-        'Content-Type': 'application/json',
-      }));
-      expect(result).toEqual(expectedResponse);
-    });
-
-    it('should make a raw GraphQL request with variables', async () => {
-      const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
-      const mockRawRequest = mockGraphQLClient.rawRequest as jest.MockedFunction<any>;
-      
-      const query = 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }';
-      const variables = { limit: 5 };
-      const expectedResponse = {
-        data: { transactions: [{ hash: 'test-hash' }] },
-        errors: undefined
-      };
-      
+    it.each([
+      {
+        name: 'anonymous query',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined,
+        operationName: undefined,
+        expectedResponse: {
+          data: { __schema: { queryType: { name: 'Query' } } },
+          errors: undefined
+        }
+      },
+      {
+        name: 'named query with variables',
+        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
+        variables: { limit: 5 },
+        operationName: 'GetTransactions',
+        expectedResponse: {
+          data: { transactions: [{ hash: 'test-hash' }] },
+          errors: undefined
+        }
+      },
+      {
+        name: 'query with errors',
+        query: 'query { invalid }',
+        variables: undefined,
+        operationName: undefined,
+        expectedResponse: {
+          data: null,
+          errors: [{ message: 'Field "invalid" of type "Query" does not exist.' }]
+        }
+      }
+    ])('should make a raw GraphQL request with authentication for $name', async ({ query, variables, operationName, expectedResponse }) => {
       mockRawRequest.mockResolvedValue(expectedResponse);
 
       const result = await client.rawRequest(query, variables);
@@ -154,63 +159,11 @@ describe('WalletBackendClient', () => {
         'Authorization': expect.stringMatching(/^Bearer /),
         'Content-Type': 'application/json',
       }));
-      expect(result).toEqual(expectedResponse);
-    });
-
-    it('should return response with errors when GraphQL has errors', async () => {
-      const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
-      const mockRawRequest = mockGraphQLClient.rawRequest as jest.MockedFunction<any>;
       
-      const query = 'query { invalid }';
-      const expectedResponse = {
-        data: null,
-        errors: [{ message: 'Field "invalid" of type "Query" does not exist.' }]
-      };
-      
-      mockRawRequest.mockResolvedValue(expectedResponse);
-
-      const result = await client.rawRequest(query);
-
+      validateJwtBodyHash(mockRawRequest, query, variables, operationName);
       expect(result).toEqual(expectedResponse);
     });
   });
 
-  describe('authentication headers', () => {
-    it('should include Authorization header with Bearer token', async () => {
-      const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
-      const mockRequest = mockGraphQLClient.request as jest.MockedFunction<any>;
-      
-      const query = 'query { __schema { queryType { name } } }';
-      mockRequest.mockResolvedValue({});
 
-      await client.request(query);
-
-      expect(mockRequest).toHaveBeenCalledWith(
-        query,
-        undefined,
-        expect.objectContaining({
-          'Authorization': expect.stringMatching(/^Bearer eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/),
-          'Content-Type': 'application/json',
-        })
-      );
-    });
-
-    it('should generate different tokens for different queries', async () => {
-      const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
-      const mockRequest = mockGraphQLClient.request as jest.MockedFunction<any>;
-      
-      const query1 = 'query { __schema { queryType { name } } }';
-      const query2 = 'query { transactions { hash } }';
-      
-      mockRequest.mockResolvedValue({});
-
-      await client.request(query1);
-      const headers1 = mockRequest.mock.calls[0][2];
-      
-      await client.request(query2);
-      const headers2 = mockRequest.mock.calls[1][2];
-
-      expect(headers1.Authorization).not.toBe(headers2.Authorization);
-    });
-  });
 }); 

@@ -127,7 +127,9 @@ Integration tests require a running wallet backend server and proper authenticat
 1. **Create a `.env` file** in the project root:
    ```bash
    CLIENT_AUTH_PRIVATE_KEY=your-stellar-private-key-here
-   GRAPHQL_BASE_URL=http://localhost:8001/graphql/query
+   GRAPHQL_HOST=localhost
+   GRAPHQL_PORT=8001
+   GRAPHQL_PATH=/graphql/query
    JWT_AUDIENCE=api
    ```
 

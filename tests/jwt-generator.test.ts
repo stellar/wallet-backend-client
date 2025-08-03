@@ -1,9 +1,12 @@
 import { JwtGenerator } from '../src/jwt-generator';
+import * as crypto from 'crypto';
+import { Keypair } from '@stellar/stellar-sdk';
 
 describe('JwtGenerator', () => {
   let jwtGenerator: JwtGenerator;
+  
+  // Unit tests use arbitrary values since they don't interact with real backend
   const testPrivateKey = 'SDFCVJQCCN3BVKHYS5MIE6OJCAGCE3KCZWZDXD2AMZUJ5Z4J7YTOPSOC';
-  const expectedPublicKey = 'GBJU5TE456SV7TTXVDQFLYFRLUHWFBPMUAFCECRI6DD3OF7IKRMMZUI5';
 
   beforeEach(() => {
     jwtGenerator = new JwtGenerator(testPrivateKey);
@@ -11,6 +14,8 @@ describe('JwtGenerator', () => {
 
   describe('constructor', () => {
     it('should create a JWT generator with the correct public key', () => {
+      const expectedKeypair = Keypair.fromSecret(testPrivateKey);
+      const expectedPublicKey = expectedKeypair.publicKey();
       expect(jwtGenerator.getPublicKey()).toBe(expectedPublicKey);
     });
 
@@ -20,15 +25,6 @@ describe('JwtGenerator', () => {
   });
 
   describe('generateJWT', () => {
-    it('should generate a valid JWT for a simple query', async () => {
-      const query = 'query { __schema { queryType { name } } }';
-      const jwt = await jwtGenerator.generateJWT(query);
-
-      expect(jwt).toBeDefined();
-      expect(typeof jwt).toBe('string');
-      expect(jwt.split('.')).toHaveLength(3); // header.payload.signature
-    });
-
     it('should generate different JWTs for different queries', async () => {
       const query1 = 'query { __schema { queryType { name } } }';
       const query2 = 'query { transactions { hash } }';
@@ -74,28 +70,61 @@ describe('JwtGenerator', () => {
     });
   });
 
-  describe('JWT structure', () => {
-    it('should generate JWT with correct header structure', async () => {
-      const query = 'query { __schema { queryType { name } } }';
-      const jwt = await jwtGenerator.generateJWT(query);
+  describe('JWT structure and validation', () => {
+    it.each([
+      {
+        name: 'anonymous query',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined,
+        expectedBody: { query: 'query { __schema { queryType { name } } }' }
+      },
+      {
+        name: 'named query',
+        query: 'query GetSchema { __schema { queryType { name } } }',
+        variables: undefined,
+        expectedBody: { query: 'query GetSchema { __schema { queryType { name } } }', operationName: 'GetSchema' }
+      },
+      {
+        name: 'anonymous mutation',
+        query: 'mutation { registerAccount(input: { address: "GBJU5TE456SV7TTXVDQFLYFRLUHWFBPMUAFCECRI6DD3OF7IKRMMZUI5" }) { success } }',
+        variables: undefined,
+        expectedBody: { query: 'mutation { registerAccount(input: { address: "GBJU5TE456SV7TTXVDQFLYFRLUHWFBPMUAFCECRI6DD3OF7IKRMMZUI5" }) { success } }' }
+      },
+      {
+        name: 'named mutation',
+        query: 'mutation RegisterAccount { registerAccount(input: { address: "GBJU5TE456SV7TTXVDQFLYFRLUHWFBPMUAFCECRI6DD3OF7IKRMMZUI5" }) { success } }',
+        variables: undefined,
+        expectedBody: { query: 'mutation RegisterAccount { registerAccount(input: { address: "GBJU5TE456SV7TTXVDQFLYFRLUHWFBPMUAFCECRI6DD3OF7IKRMMZUI5" }) { success } }', operationName: 'RegisterAccount' }
+      },
+      {
+        name: 'query with variables',
+        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
+        variables: { limit: 5 },
+        expectedBody: { query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }', variables: { limit: 5 }, operationName: 'GetTransactions' }
+      }
+    ])('should generate JWT with correct structure and validate body hash for $name', async ({ query, variables, expectedBody }) => {
+      const jwt = await jwtGenerator.generateJWT(query, variables);
 
+      // Basic JWT validation
+      expect(jwt).toBeDefined();
+      expect(typeof jwt).toBe('string');
+      expect(jwt.split('.')).toHaveLength(3);
+
+      // Parse JWT parts
       const parts = jwt.split('.');
       const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
 
+      // Validate header structure
+      const expectedKeypair = Keypair.fromSecret(testPrivateKey);
+      const expectedPublicKey = expectedKeypair.publicKey();
       expect(header).toEqual({
         alg: 'EdDSA',
         typ: 'JWT',
         kid: expectedPublicKey
       });
-    });
 
-    it('should generate JWT with correct payload structure', async () => {
-      const query = 'query { __schema { queryType { name } } }';
-      const jwt = await jwtGenerator.generateJWT(query);
-
-      const parts = jwt.split('.');
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-
+      // Validate payload structure
       expect(payload).toMatchObject({
         iss: expectedPublicKey,
         sub: expectedPublicKey,
@@ -106,37 +135,19 @@ describe('JwtGenerator', () => {
         bodyHash: expect.any(String),
         methodAndPath: 'POST /graphql/query'
       });
-    });
 
-    it('should have expiration time within 5 seconds', async () => {
-      const query = 'query { __schema { queryType { name } } }';
-      const jwt = await jwtGenerator.generateJWT(query);
-
-      const parts = jwt.split('.');
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-
+      // Validate expiration time
       const now = Math.floor(Date.now() / 1000);
       const timeDiff = payload.exp - now;
-
       expect(timeDiff).toBeGreaterThan(0);
       expect(timeDiff).toBeLessThanOrEqual(5);
-    });
 
-    it('should hash the correct body content', async () => {
-      const query = 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }';
-      const variables = { limit: 5 };
-      const jwt = await jwtGenerator.generateJWT(query, variables);
-
-      const parts = jwt.split('.');
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-
-      // The body hash should match the hash of the JSON body (including operation name)
-      const expectedBody = JSON.stringify({ query, variables, operationName: 'GetTransactions' });
-      const crypto = require('crypto');
-      const expectedHash = crypto.createHash('sha256').update(expectedBody).digest('hex');
-
+      // Validate body hash
+      const expectedBodyString = JSON.stringify(expectedBody);
+      const expectedHash = crypto.createHash('sha256').update(expectedBodyString).digest('hex');
       expect(payload.bodyHash).toBe(expectedHash);
-      // The expected hash for the body with operation name is: aff455d82125f6e6e95062e2c675c731ad5e84f6b5978a58cd4af5efc2a6de17
     });
   });
+
+
 }); 

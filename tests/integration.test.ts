@@ -1,35 +1,43 @@
 import 'dotenv/config';
 import { WalletBackendClient } from '../src/graphql-client';
+import * as http from 'http';
+import { Keypair } from '@stellar/stellar-sdk';
 
 // Integration tests - these require the wallet backend server to be running
 describe('WalletBackendClient Integration', () => {
-  let client: WalletBackendClient;
-  let testPrivateKey: string;
-  let testBaseUrl: string;
-  let testAudience: string;
+  // Check required environment variables
+  if (!process.env.CLIENT_AUTH_PRIVATE_KEY) {
+    throw new Error('CLIENT_AUTH_PRIVATE_KEY environment variable is required for integration tests');
+  }
+  if (!process.env.GRAPHQL_HOST) {
+    throw new Error('GRAPHQL_HOST environment variable is required for integration tests');
+  }
+  if (!process.env.GRAPHQL_PORT) {
+    throw new Error('GRAPHQL_PORT environment variable is required for integration tests');
+  }
+  if (!process.env.GRAPHQL_PATH) {
+    throw new Error('GRAPHQL_PATH environment variable is required for integration tests');
+  }
+  if (!process.env.JWT_AUDIENCE) {
+    throw new Error('JWT_AUDIENCE environment variable is required for integration tests');
+  }
+
+  const testPrivateKey = process.env.CLIENT_AUTH_PRIVATE_KEY;
+  const host = process.env.GRAPHQL_HOST;
+  const port = parseInt(process.env.GRAPHQL_PORT, 10);
+  const path = process.env.GRAPHQL_PATH;
+  const testBaseUrl = `http://${host}:${port}${path}`;
+  const testAudience = process.env.JWT_AUDIENCE;
+  
+  // Create client once since it's stateless and safe for concurrent use
+  const client = new WalletBackendClient(testPrivateKey, testBaseUrl, testAudience);
 
   beforeAll(() => {
-    // Check required environment variables
-    if (!process.env.CLIENT_AUTH_PRIVATE_KEY) {
-      throw new Error('CLIENT_AUTH_PRIVATE_KEY environment variable is required for integration tests');
-    }
-    if (!process.env.GRAPHQL_BASE_URL) {
-      throw new Error('GRAPHQL_BASE_URL environment variable is required for integration tests');
-    }
-    if (!process.env.JWT_AUDIENCE) {
-      throw new Error('JWT_AUDIENCE environment variable is required for integration tests');
-    }
-
-    testPrivateKey = process.env.CLIENT_AUTH_PRIVATE_KEY;
-    testBaseUrl = process.env.GRAPHQL_BASE_URL;
-    testAudience = process.env.JWT_AUDIENCE;
-
     // Check if server is running
-    const http = require('http');
     return new Promise<void>((resolve, reject) => {
       const req = http.request({
-        hostname: 'localhost',
-        port: 8001,
+        hostname: host,
+        port: port,
         path: '/health',
         method: 'GET',
         timeout: 5000
@@ -58,12 +66,8 @@ describe('WalletBackendClient Integration', () => {
     });
   });
 
-  beforeEach(() => {
-    client = new WalletBackendClient(testPrivateKey, testBaseUrl, testAudience);
-  });
-
   describe('Authentication', () => {
-    it('should successfully authenticate with the server', async () => {
+    it('should successfully authenticate with the server using rawRequest', async () => {
       const query = 'query { __schema { queryType { name } } }';
       
       const result = await client.rawRequest(query);
@@ -73,24 +77,17 @@ describe('WalletBackendClient Integration', () => {
       expect(result.data.__schema.queryType.name).toBe('Query');
     });
 
-    it('should generate valid JWTs for authentication', async () => {
+    it('should successfully authenticate with the server using request', async () => {
       const query = 'query { __schema { queryType { name } } }';
-      const jwt = await client.getJWT(query);
-
-      expect(jwt).toBeDefined();
-      expect(typeof jwt).toBe('string');
-      expect(jwt.split('.')).toHaveLength(3);
-
-      // Verify JWT structure
-      const parts = jwt.split('.');
-      const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-
-      expect(header.alg).toBe('EdDSA');
-      expect(header.typ).toBe('JWT');
-      expect(payload.aud).toContain('api');
-      expect(payload.methodAndPath).toBe('POST /graphql/query');
+      
+      const result = await client.request(query);
+      expect(result).toBeDefined();
+      expect(result.__schema).toBeDefined();
+      expect(result.__schema.queryType).toBeDefined();
+      expect(result.__schema.queryType.name).toBe('Query');
     });
+
+
   });
 
   describe('GraphQL Queries', () => {
@@ -157,7 +154,6 @@ describe('WalletBackendClient Integration', () => {
       `;
       
       // Generate a fresh Stellar key pair for testing
-      const { Keypair } = require('@stellar/stellar-sdk');
       const keypair = Keypair.random();
       const freshAddress = keypair.publicKey();
       
