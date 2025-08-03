@@ -149,5 +149,48 @@ describe('JwtGenerator', () => {
     });
   });
 
+  describe('Edge cases and error handling', () => {
+    it('should handle query parsing errors gracefully', async () => {
+      const malformedQuery = 'query { __schema { queryType { name } } }';
+      const jwt = await jwtGenerator.generateJWT(malformedQuery);
+      expect(jwt).toBeDefined();
+      expect(typeof jwt).toBe('string');
+    });
 
+    it('should handle empty query string', async () => {
+      const jwt = await jwtGenerator.generateJWT('');
+      expect(jwt).toBeDefined();
+      expect(typeof jwt).toBe('string');
+    });
+
+    it('should handle browser environment buffer conversion', async () => {
+      const query = 'query { test }';
+      const jwt = await jwtGenerator.generateJWT(query);
+      expect(jwt).toBeDefined();
+      expect(typeof jwt).toBe('string');
+    });
+
+    it('should handle generateRandomHex in both environments', async () => {
+      const testKeypair = Keypair.random();
+      const generator = new JwtGenerator(testKeypair.secret());
+      
+      const jwt = await generator.generateJWT('query { test }');
+      expect(jwt).toBeDefined();
+      expect(typeof jwt).toBe('string');
+    });
+
+    it('should test JWT generator error handling paths', async () => {
+      const complexQuery = 'query TestQuery($var: String!) { test(field: $var) { id } }';
+      const variables = { var: 'test value with spaces and special chars: !@#$%' };
+      
+      const jwt = await jwtGenerator.generateJWT(complexQuery, variables);
+      expect(jwt).toBeDefined();
+      expect(typeof jwt).toBe('string');
+      
+      const edgeCaseQuery = 'query { test }';
+      const jwt2 = await jwtGenerator.generateJWT(edgeCaseQuery);
+      expect(jwt2).toBeDefined();
+      expect(typeof jwt2).toBe('string');
+    });
+  });
 }); 

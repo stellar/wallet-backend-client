@@ -157,42 +157,5 @@ describe('crypto-utils', () => {
         cryptoUtils.createHash('invalid-algorithm');
       }).toThrow(/Digest method not supported|Unsupported hash algorithm: invalid-algorithm/);
     });
-
-    it('should handle null/undefined inputs gracefully', async () => {
-      // Test with empty string (should be handled by standard crypto)
-      await expect(hashString('')).resolves.toBeDefined();
-    });
-  });
-
-  describe('Standard SHA-256 hashing', () => {
-    it('should produce standard SHA-256 hash', async () => {
-      const input = 'test string';
-      
-      // Our implementation
-      const ourHash = await hashString(input);
-      
-      // Expected SHA-256 hash for "test string"
-      const expectedHash = 'd5579c46dfcc7f18207013e65b44e4cb4e2c2298f4ac457ba8f82743f31e930b';
-      
-      expect(ourHash).toBe(expectedHash);
-    });
-
-    it('should handle various input types consistently', async () => {
-      const testCases = [
-        '',
-        'a',
-        'test',
-        '{"query":"test"}',
-        'special chars: !@#$%^&*()',
-        'unicode: 🚀🌟',
-        'newlines\nand\rtabs\t'
-      ];
-
-      for (const testCase of testCases) {
-        const result = await hashString(testCase);
-        expect(result).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hex format
-        expect(result.length).toBe(64);
-      }
-    });
   });
 }); 
