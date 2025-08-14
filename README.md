@@ -159,8 +159,7 @@ function processTransaction(tx: Transaction) {
 ```typescript
 new WalletBackendClient(
   privateKey: string,    // Your Stellar private key
-  baseUrl: string,       // GraphQL endpoint URL
-  audience: string       // JWT audience (usually 'api')
+  baseUrl: string        // GraphQL endpoint URL
 )
 ```
 

@@ -18,19 +18,15 @@ describe('WalletBackendClient Integration', () => {
   if (!process.env.GRAPHQL_PATH) {
     throw new Error('GRAPHQL_PATH environment variable is required for integration tests');
   }
-  if (!process.env.JWT_AUDIENCE) {
-    throw new Error('JWT_AUDIENCE environment variable is required for integration tests');
-  }
 
   const testPrivateKey = process.env.CLIENT_AUTH_PRIVATE_KEY;
   const host = process.env.GRAPHQL_HOST;
   const port = parseInt(process.env.GRAPHQL_PORT, 10);
   const path = process.env.GRAPHQL_PATH;
   const testBaseUrl = `http://${host}:${port}${path}`;
-  const testAudience = process.env.JWT_AUDIENCE;
   
   // Create client once since it's stateless and safe for concurrent use
-  const client = new WalletBackendClient(testPrivateKey, testBaseUrl, testAudience);
+  const client = new WalletBackendClient(testPrivateKey, testBaseUrl);
 
   beforeAll(() => {
     // Check if server is running
@@ -126,7 +122,7 @@ describe('WalletBackendClient Integration', () => {
       if (!testPrivateKey) {
         throw new Error('CLIENT_AUTH_PRIVATE_KEY environment variable is required for integration tests');
       }
-      const invalidClient = new WalletBackendClient(testPrivateKey, 'http://localhost:9999/graphql/query', testAudience);
+      const invalidClient = new WalletBackendClient(testPrivateKey, 'http://localhost:9999/graphql/query');
       const query = 'query { __schema { queryType { name } } }';
       
       try {

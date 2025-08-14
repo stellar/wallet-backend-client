@@ -4,26 +4,22 @@ import { JwtGenerator } from './jwt-generator';
 export class WalletBackendClient {
   private client: GraphQLClient;
   private jwtGenerator: JwtGenerator;
-  private audience: string;
 
   /**
    * Creates a new WalletBackendClient instance
    * @param privateKey The Stellar private key for JWT authentication
    * @param baseUrl The GraphQL endpoint URL
-   * @param audience The JWT audience (e.g., 'api' for local Docker, hostname for production)
    */
   constructor(
     privateKey: string, 
-    baseUrl: string,
-    audience: string
+    baseUrl: string
   ) {
     this.jwtGenerator = new JwtGenerator(privateKey);
-    this.audience = audience;
     this.client = new GraphQLClient(baseUrl);
   }
 
   private async getAuthHeaders(query: string, variables?: Record<string, any>): Promise<Record<string, string>> {
-    const jwt = await this.jwtGenerator.generateJWT(query, variables, this.audience);
+    const jwt = await this.jwtGenerator.generateJWT(query, variables);
     return {
       'Authorization': `Bearer ${jwt}`,
       'Content-Type': 'application/json',
@@ -58,12 +54,11 @@ export class WalletBackendClient {
 
   /**
    * Generate a JWT token for a given query string
-   * The audience is set in the constructor
    * @param query The GraphQL query string
    * @param variables Optional variables for the query
    * @returns The JWT token string
    */
   async getJWT(query: string, variables?: Record<string, any>): Promise<string> {
-    return await this.jwtGenerator.generateJWT(query, variables, this.audience);
+    return await this.jwtGenerator.generateJWT(query, variables);
   }
 } 

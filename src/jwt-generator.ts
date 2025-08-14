@@ -14,7 +14,6 @@ export interface JwtPayload {
   // Standard JWT claims (matching Go JWT library)
   iss: string;  // Issuer
   sub: string;  // Subject
-  aud: string[]; // Audience
   iat: number;  // Issued At
   exp: number;  // Expiration Time
   jti: string;  // JWT ID
@@ -37,7 +36,7 @@ export class JwtGenerator {
     };
   }
 
-  private createJwtPayload(audience: string, methodAndPath: string, bodyHash: string): JwtPayload {
+  private createJwtPayload(methodAndPath: string, bodyHash: string): JwtPayload {
     const now = Math.floor(Date.now() / 1000);
     return {
       // Custom claims
@@ -46,7 +45,6 @@ export class JwtGenerator {
       // Standard JWT claims
       iss: this.publicKey,
       sub: this.publicKey,
-      aud: [audience],
       iat: now,
       exp: now + 3, // 3 seconds expiration (within 5s limit)
       jti: this.generateRandomHex(16)
@@ -102,7 +100,7 @@ export class JwtGenerator {
     return `${data}.${signatureB64}`;
   }
 
-  public async generateJWT(query: string, variables?: Record<string, any>, audience: string = 'api'): Promise<string> {
+  public async generateJWT(query: string, variables?: Record<string, any>): Promise<string> {
     // Create the JSON body that will be sent in the request
     // Match exactly what graphql-request sends: { query, variables, operationName }
     
@@ -128,7 +126,7 @@ export class JwtGenerator {
     const body = JSON.stringify(bodyObj);
     const bodyHash = await this.hashBody(body);
     const header = this.createJwtHeader();
-    const payload = this.createJwtPayload(audience, 'POST /graphql/query', bodyHash);
+    const payload = this.createJwtPayload('POST /graphql/query', bodyHash);
     
     return this.signJwt(header, payload);
   }

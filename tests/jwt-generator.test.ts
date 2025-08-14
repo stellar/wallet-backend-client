@@ -46,28 +46,6 @@ describe('JwtGenerator', () => {
       expect(jwt1).not.toBe(jwt2);
     });
 
-    it('should use custom audience when provided', async () => {
-      const query = 'query { __schema { queryType { name } } }';
-      const customAudience = 'custom-audience';
-      const jwt = await jwtGenerator.generateJWT(query, undefined, customAudience);
-
-      // Decode JWT to check audience
-      const parts = jwt.split('.');
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-      
-      expect(payload.aud).toContain(customAudience);
-    });
-
-    it('should use default audience when not provided', async () => {
-      const query = 'query { __schema { queryType { name } } }';
-      const jwt = await jwtGenerator.generateJWT(query);
-
-      // Decode JWT to check audience
-      const parts = jwt.split('.');
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-      
-      expect(payload.aud).toContain('api');
-    });
   });
 
   describe('JWT structure and validation', () => {
@@ -128,13 +106,15 @@ describe('JwtGenerator', () => {
       expect(payload).toMatchObject({
         iss: expectedPublicKey,
         sub: expectedPublicKey,
-        aud: expect.arrayContaining(['api']),
         iat: expect.any(Number),
         exp: expect.any(Number),
         jti: expect.any(String),
         bodyHash: expect.any(String),
         methodAndPath: 'POST /graphql/query'
       });
+
+      // Validate that audience claim is not present
+      expect(payload.aud).toBeUndefined();
 
       // Validate expiration time
       const now = Math.floor(Date.now() / 1000);

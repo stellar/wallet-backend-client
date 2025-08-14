@@ -11,7 +11,6 @@ describe('WalletBackendClient', () => {
   // Unit tests use arbitrary values since they don't interact with real backend
   const testPrivateKey = 'SDFCVJQCCN3BVKHYS5MIE6OJCAGCE3KCZWZDXD2AMZUJ5Z4J7YTOPSOC';
   const testBaseUrl = 'http://test.example.com:1234/graphql/query';
-  const testAudience = 'test-audience';
 
   let mockRequest: jest.MockedFunction<any>;
   let mockRawRequest: jest.MockedFunction<any>;
@@ -38,7 +37,7 @@ describe('WalletBackendClient', () => {
       rawRequest: jest.fn(),
     } as any));
 
-    client = new WalletBackendClient(testPrivateKey, testBaseUrl, testAudience);
+    client = new WalletBackendClient(testPrivateKey, testBaseUrl);
     
     // Get references to the mocked methods
     const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
