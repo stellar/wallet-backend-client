@@ -1,6 +1,6 @@
 # @stellar/wallet-backend-client
 
-A universal TypeScript GraphQL client for the Stellar Wallet Backend with built-in JWT authentication. Works seamlessly in Node.js, browsers, React, and React Native environments.
+A universal TypeScript GraphQL client for the Stellar Wallet Backend with optional JWT authentication. Works seamlessly in Node.js, browsers, React, and React Native environments.
 
 ## Installation
 
@@ -13,14 +13,18 @@ npm install @stellar/wallet-backend-client
 ```typescript
 import { WalletBackendClient } from '@stellar/wallet-backend-client';
 
-// Initialize the client with your Stellar private key
+// With authentication (when wallet backend requires it)
 const client = new WalletBackendClient(
-  'your-stellar-private-key', 
   'http://localhost:8001/graphql/query',
-  'api'
+  { authKey: 'your-stellar-private-key' }
 );
 
-// Make authenticated requests
+// Without authentication (when wallet backend doesn't require it)
+const client = new WalletBackendClient(
+  'http://localhost:8001/graphql/query'
+);
+
+// Make requests
 const result = await client.request(`
   query {
     transactions(limit: 10) {
@@ -33,7 +37,7 @@ const result = await client.request(`
 
 ## Features
 
-- 🔐 **Automatic JWT Authentication** - Uses your Stellar Ed25519 keypair for secure requests
+- 🔐 **Optional JWT Authentication** - Uses your Stellar Ed25519 keypair for secure requests when needed
 - 🌐 **Universal Compatibility** - Works in Node.js, browsers, React, and React Native
 - 📝 **Full TypeScript Support** - Complete type safety with generated GraphQL types
 - 🚀 **Simple API** - Easy-to-use interface for GraphQL queries and mutations
@@ -129,12 +133,14 @@ Works in all JavaScript environments:
 
 ## Authentication
 
-The client automatically handles JWT authentication using your Stellar private key. Each request includes:
+The client supports optional JWT authentication using your Stellar private key. When authentication is configured, each request includes:
 
 - **Automatic JWT Generation** - Uses your Ed25519 keypair
 - **Request Body Hashing** - Ensures request integrity
 - **Universal Crypto Support** - Works across all environments
 - **Secure Headers** - Proper Authorization headers
+
+Authentication is only required when the wallet backend has public keys configured. If no public keys are configured on the backend, the client can be used without authentication.
 
 ## Type Safety
 
@@ -158,16 +164,16 @@ function processTransaction(tx: Transaction) {
 
 ```typescript
 new WalletBackendClient(
-  privateKey: string,    // Your Stellar private key
-  baseUrl: string        // GraphQL endpoint URL
+  baseUrl: string,                    // GraphQL endpoint URL
+  options?: { authKey?: string }      // Optional authentication key
 )
 ```
 
 ### Methods
 
-- `request(query, variables?)` - Make authenticated GraphQL requests
-- `rawRequest(query, variables?)` - Get raw response with errors
-- `getJWT(query, variables?)` - Generate JWT for custom requests
+- `request(query, variables?)` - Make GraphQL requests (authenticated if authKey provided)
+- `rawRequest(query, variables?)` - Get raw response with errors, status, and headers
+- `getJWT(query, variables?)` - Generate JWT for custom requests (requires authKey)
 
 ## Development
 

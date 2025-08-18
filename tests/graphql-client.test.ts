@@ -7,6 +7,7 @@ jest.mock('graphql-request');
 
 describe('WalletBackendClient', () => {
   let client: WalletBackendClient;
+  let clientNoAuth: WalletBackendClient;
   
   // Unit tests use arbitrary values since they don't interact with real backend
   const testPrivateKey = 'SDFCVJQCCN3BVKHYS5MIE6OJCAGCE3KCZWZDXD2AMZUJ5Z4J7YTOPSOC';
@@ -14,6 +15,8 @@ describe('WalletBackendClient', () => {
 
   let mockRequest: jest.MockedFunction<any>;
   let mockRawRequest: jest.MockedFunction<any>;
+  let mockRequestNoAuth: jest.MockedFunction<any>;
+  let mockRawRequestNoAuth: jest.MockedFunction<any>;
 
   // Helper function to validate JWT body hash
   const validateJwtBodyHash = (mockCall: any, query: string, variables?: any, operationName?: string) => {
@@ -37,12 +40,21 @@ describe('WalletBackendClient', () => {
       rawRequest: jest.fn(),
     } as any));
 
-    client = new WalletBackendClient(testPrivateKey, testBaseUrl);
+    // Create client with auth
+    client = new WalletBackendClient(testBaseUrl, { authKey: testPrivateKey });
     
-    // Get references to the mocked methods
+    // Create client without auth
+    clientNoAuth = new WalletBackendClient(testBaseUrl);
+    
+    // Get references to the mocked methods for authenticated client
     const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
     mockRequest = mockGraphQLClient.request;
     mockRawRequest = mockGraphQLClient.rawRequest;
+    
+    // Get references to the mocked methods for non-authenticated client
+    const mockGraphQLClientNoAuth = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[1].value as any;
+    mockRequestNoAuth = mockGraphQLClientNoAuth.request;
+    mockRawRequestNoAuth = mockGraphQLClientNoAuth.rawRequest;
   });
 
 
@@ -75,6 +87,12 @@ describe('WalletBackendClient', () => {
       const jwt2 = await client.getJWT(query2);
 
       expect(jwt1).not.toBe(jwt2);
+    });
+
+    it('should throw error when no authKey provided', async () => {
+      const query = 'query { __schema { queryType { name } } }';
+      
+      await expect(clientNoAuth.getJWT(query)).rejects.toThrow('Cannot generate JWT: no authKey provided during client initialization');
     });
   });
 
@@ -114,6 +132,36 @@ describe('WalletBackendClient', () => {
       mockRequest.mockRejectedValue(error);
 
       await expect(client.request(query)).rejects.toThrow('GraphQL Error');
+    });
+
+    it.each([
+      {
+        name: 'anonymous query without auth',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined,
+        expectedData: { __schema: { queryType: { name: 'Query' } } }
+      },
+      {
+        name: 'named query with variables without auth',
+        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
+        variables: { limit: 5 },
+        expectedData: { transactions: [{ hash: 'test-hash' }] }
+      }
+    ])('should make a GraphQL request without authentication for $name', async ({ query, variables, expectedData }) => {
+      mockRequestNoAuth.mockResolvedValue(expectedData);
+
+      const result = await clientNoAuth.request(query, variables);
+
+      expect(mockRequestNoAuth).toHaveBeenCalledWith(query, variables, expect.objectContaining({
+        'Content-Type': 'application/json',
+      }));
+      
+      // Verify no Authorization header is present
+      expect(mockRequestNoAuth).toHaveBeenCalledWith(query, variables, expect.not.objectContaining({
+        'Authorization': expect.anything(),
+      }));
+      
+      expect(result).toEqual(expectedData);
     });
   });
 
@@ -160,6 +208,42 @@ describe('WalletBackendClient', () => {
       }));
       
       validateJwtBodyHash(mockRawRequest, query, variables, operationName);
+      expect(result).toEqual(expectedResponse);
+    });
+
+    it.each([
+      {
+        name: 'anonymous query without auth',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined,
+        expectedResponse: {
+          data: { __schema: { queryType: { name: 'Query' } } },
+          errors: undefined
+        }
+      },
+      {
+        name: 'named query with variables without auth',
+        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
+        variables: { limit: 5 },
+        expectedResponse: {
+          data: { transactions: [{ hash: 'test-hash' }] },
+          errors: undefined
+        }
+      }
+    ])('should make a raw GraphQL request without authentication for $name', async ({ query, variables, expectedResponse }) => {
+      mockRawRequestNoAuth.mockResolvedValue(expectedResponse);
+
+      const result = await clientNoAuth.rawRequest(query, variables);
+
+      expect(mockRawRequestNoAuth).toHaveBeenCalledWith(query, variables, expect.objectContaining({
+        'Content-Type': 'application/json',
+      }));
+      
+      // Verify no Authorization header is present
+      expect(mockRawRequestNoAuth).toHaveBeenCalledWith(query, variables, expect.not.objectContaining({
+        'Authorization': expect.anything(),
+      }));
+      
       expect(result).toEqual(expectedResponse);
     });
   });

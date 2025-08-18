@@ -26,7 +26,7 @@ describe('WalletBackendClient Integration', () => {
   const testBaseUrl = `http://${host}:${port}${path}`;
   
   // Create client once since it's stateless and safe for concurrent use
-  const client = new WalletBackendClient(testPrivateKey, testBaseUrl);
+  const client = new WalletBackendClient(testBaseUrl, { authKey: testPrivateKey });
 
   beforeAll(() => {
     // Check if server is running
@@ -67,6 +67,11 @@ describe('WalletBackendClient Integration', () => {
       const query = 'query { __schema { queryType { name } } }';
       
       const result = await client.rawRequest(query);
+      
+      // Verify successful HTTP status code first
+      expect(result.status).toBe(200);
+      
+      // Then verify response body
       expect(result.data).toBeDefined();
       expect(result.data.__schema).toBeDefined();
       expect(result.data.__schema.queryType).toBeDefined();
@@ -90,30 +95,42 @@ describe('WalletBackendClient Integration', () => {
     it('should handle successful queries', async () => {
       const query = 'query { __schema { queryType { name } } }';
       
-      const result = await client.request(query);
-      expect(result).toBeDefined();
-      expect(result.__schema).toBeDefined();
+      const result = await client.rawRequest(query);
+      
+      // Verify successful HTTP status code first
+      expect(result.status).toBe(200);
+      
+      // Then verify response body
+      expect(result.data).toBeDefined();
+      expect(result.data.__schema).toBeDefined();
     });
 
     it('should handle queries with variables', async () => {
       const query = 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }';
       const variables = { limit: 5 };
       
-      const result = await client.request(query, variables);
-      expect(result).toBeDefined();
-      expect(Array.isArray(result.transactions)).toBe(true);
+      const result = await client.rawRequest(query, variables);
+      
+      // Verify successful HTTP status code first
+      expect(result.status).toBe(200);
+      
+      // Then verify response body
+      expect(result.data).toBeDefined();
+      expect(Array.isArray(result.data.transactions)).toBe(true);
     });
 
     it('should handle GraphQL errors gracefully', async () => {
       const query = 'query { invalidField }';
       
       try {
-        await client.request(query);
-        fail('Expected error to be thrown');
+        await client.rawRequest(query);
+        fail('Expected validation error to be thrown');
       } catch (error: any) {
-        expect(error.response).toBeDefined();
+        // Wallet backend returns 422 for GraphQL validation errors
+        expect(error.response.status).toBe(422);
         expect(error.response.errors).toBeDefined();
         expect(Array.isArray(error.response.errors)).toBe(true);
+        expect(error.response.errors.length).toBeGreaterThan(0);
       }
     });
 
@@ -122,7 +139,7 @@ describe('WalletBackendClient Integration', () => {
       if (!testPrivateKey) {
         throw new Error('CLIENT_AUTH_PRIVATE_KEY environment variable is required for integration tests');
       }
-      const invalidClient = new WalletBackendClient(testPrivateKey, 'http://localhost:9999/graphql/query');
+      const invalidClient = new WalletBackendClient('http://localhost:9999/graphql/query', { authKey: testPrivateKey });
       const query = 'query { __schema { queryType { name } } }';
       
       try {
@@ -159,34 +176,40 @@ describe('WalletBackendClient Integration', () => {
         }
       };
       
-      const result = await client.request(mutation, variables);
-      expect(result).toBeDefined();
-      expect(result.registerAccount).toBeDefined();
-      expect(typeof result.registerAccount.success).toBe('boolean');
-      expect(result.registerAccount.success).toBe(true);
-      if (result.registerAccount.account) {
-        expect(result.registerAccount.account.address).toBeDefined();
-        expect(result.registerAccount.account.address).toBe(freshAddress);
+      const result = await client.rawRequest(mutation, variables);
+      
+      // Verify successful HTTP status code first
+      expect(result.status).toBe(200);
+      
+      // Then verify response body
+      expect(result.data).toBeDefined();
+      expect(result.data.registerAccount).toBeDefined();
+      expect(typeof result.data.registerAccount.success).toBe('boolean');
+      expect(result.data.registerAccount.success).toBe(true);
+      if (result.data.registerAccount.account) {
+        expect(result.data.registerAccount.account.address).toBeDefined();
+        expect(result.data.registerAccount.account.address).toBe(freshAddress);
       }
     });
   });
 
   describe('Error Handling', () => {
-    it('should handle rawRequest with errors', async () => {
+    it('should handle rawRequest with GraphQL validation errors', async () => {
       const query = 'query { invalidField }';
       
       try {
-        const result = await client.rawRequest(query);
-        expect(result.errors).toBeDefined();
-        expect(Array.isArray(result.errors)).toBe(true);
-        expect(result.errors!.length).toBeGreaterThan(0);
+        await client.rawRequest(query);
+        fail('Expected validation error to be thrown');
       } catch (error: any) {
-        // If it's a network error, that's also valid
-        expect(error).toBeDefined();
+        // Wallet backend returns 422 for GraphQL validation errors
+        expect(error.response.status).toBe(422);
+        expect(error.response.errors).toBeDefined();
+        expect(Array.isArray(error.response.errors)).toBe(true);
+        expect(error.response.errors.length).toBeGreaterThan(0);
       }
     });
 
-    it('should handle request with errors', async () => {
+    it('should handle request with GraphQL validation errors and throw', async () => {
       const query = 'query { invalidField }';
       
       try {
@@ -195,6 +218,9 @@ describe('WalletBackendClient Integration', () => {
       } catch (error: any) {
         expect(error.response).toBeDefined();
         expect(error.response.errors).toBeDefined();
+        
+        // The error response should have status 422 for GraphQL validation errors
+        expect(error.response.status).toBe(422);
       }
     });
   });

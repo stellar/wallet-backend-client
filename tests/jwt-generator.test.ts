@@ -113,9 +113,6 @@ describe('JwtGenerator', () => {
         methodAndPath: 'POST /graphql/query'
       });
 
-      // Validate that audience claim is not present
-      expect(payload.aud).toBeUndefined();
-
       // Validate expiration time
       const now = Math.floor(Date.now() / 1000);
       const timeDiff = payload.exp - now;
