@@ -24,12 +24,21 @@ const client = new WalletBackendClient(
   'http://localhost:8001/graphql/query'
 );
 
-// Make requests
+// Make paginated requests
 const result = await client.request(`
   query {
-    transactions(limit: 10) {
-      hash
-      ledgerNumber
+    transactions(first: 10) {
+      edges {
+        node {
+          hash
+          ledgerNumber
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
     }
   }
 `);
@@ -38,6 +47,7 @@ const result = await client.request(`
 ## Features
 
 - 🔐 **Optional JWT Authentication** - Uses your Stellar Ed25519 keypair for secure requests when needed
+- 📄 **Cursor-based Pagination** - Full support for GraphQL connection-based pagination
 - 🌐 **Universal Compatibility** - Works in Node.js, browsers, React, and React Native
 - 📝 **Full TypeScript Support** - Complete type safety with generated GraphQL types
 - 🚀 **Simple API** - Easy-to-use interface for GraphQL queries and mutations
@@ -45,48 +55,72 @@ const result = await client.request(`
 
 ## Usage Examples
 
-### Query Transactions
+### Query Transactions with Pagination
 
 ```typescript
 const GET_TRANSACTIONS = `
-  query GetTransactions($limit: Int) {
-    transactions(limit: $limit) {
-      hash
-      ledgerNumber
-      ledgerCreatedAt
-      operations {
-        id
-        operationType
+  query GetTransactions($first: Int, $after: String) {
+    transactions(first: $first, after: $after) {
+      edges {
+        node {
+          hash
+          ledgerNumber
+          ledgerCreatedAt
+          operations {
+            id
+            operationType
+          }
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
       }
     }
   }
 `;
 
-const data = await client.request(GET_TRANSACTIONS, { limit: 10 });
-console.log(data.transactions);
+const data = await client.request(GET_TRANSACTIONS, { first: 10 });
+console.log(data.transactions.edges.map(edge => edge.node));
 ```
 
-### Query Account Information
+### Query Account Information with Pagination
 
 ```typescript
 const GET_ACCOUNT = `
-  query GetAccount($address: String!) {
+  query GetAccount($address: String!, $first: Int) {
     account(address: $address) {
       address
-      transactions {
-        hash
-        ledgerNumber
+      transactions(first: $first) {
+        edges {
+          node {
+            hash
+            ledgerNumber
+          }
+          cursor
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
       }
-      operations {
-        id
-        operationType
+      operations(first: $first) {
+        edges {
+          node {
+            id
+            operationType
+          }
+          cursor
+        }
       }
     }
   }
 `;
 
 const account = await client.request(GET_ACCOUNT, { 
-  address: 'GABC123...' 
+  address: 'GABC123...', 
+  first: 10 
 });
 ```
 
