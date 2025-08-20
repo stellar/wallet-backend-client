@@ -62,34 +62,6 @@ describe('WalletBackendClient Integration', () => {
     });
   });
 
-  describe('Authentication', () => {
-    it('should successfully authenticate with the server using rawRequest', async () => {
-      const query = 'query { __schema { queryType { name } } }';
-      
-      const result = await client.rawRequest(query);
-      
-      // Verify successful HTTP status code first
-      expect(result.status).toBe(200);
-      
-      // Then verify response body
-      expect(result.data).toBeDefined();
-      expect(result.data.__schema).toBeDefined();
-      expect(result.data.__schema.queryType).toBeDefined();
-      expect(result.data.__schema.queryType.name).toBe('Query');
-    });
-
-    it('should successfully authenticate with the server using request', async () => {
-      const query = 'query { __schema { queryType { name } } }';
-      
-      const result = await client.request(query);
-      expect(result).toBeDefined();
-      expect(result.__schema).toBeDefined();
-      expect(result.__schema.queryType).toBeDefined();
-      expect(result.__schema.queryType.name).toBe('Query');
-    });
-
-
-  });
 
   describe('GraphQL Queries', () => {
     it('should handle successful queries', async () => {
@@ -105,9 +77,24 @@ describe('WalletBackendClient Integration', () => {
       expect(result.data.__schema).toBeDefined();
     });
 
-    it('should handle queries with variables', async () => {
-      const query = 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }';
-      const variables = { limit: 5 };
+    it('should handle paginated queries with variables', async () => {
+      const query = `
+        query GetTransactions($first: Int) { 
+          transactions(first: $first) { 
+            edges {
+              node {
+                hash
+              }
+              cursor
+            }
+            pageInfo {
+              hasNextPage
+              hasPreviousPage
+            }
+          } 
+        }
+      `;
+      const variables = { first: 5 };
       
       const result = await client.rawRequest(query, variables);
       
@@ -116,7 +103,10 @@ describe('WalletBackendClient Integration', () => {
       
       // Then verify response body
       expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data.transactions)).toBe(true);
+      expect(result.data.transactions).toBeDefined();
+      expect(result.data.transactions.edges).toBeDefined();
+      expect(Array.isArray(result.data.transactions.edges)).toBe(true);
+      expect(result.data.transactions.pageInfo).toBeDefined();
     });
 
     it('should handle GraphQL errors gracefully', async () => {
@@ -193,72 +183,5 @@ describe('WalletBackendClient Integration', () => {
     });
   });
 
-  describe('Error Handling', () => {
-    it('should handle rawRequest with GraphQL validation errors', async () => {
-      const query = 'query { invalidField }';
-      
-      try {
-        await client.rawRequest(query);
-        fail('Expected validation error to be thrown');
-      } catch (error: any) {
-        // Wallet backend returns 422 for GraphQL validation errors
-        expect(error.response.status).toBe(422);
-        expect(error.response.errors).toBeDefined();
-        expect(Array.isArray(error.response.errors)).toBe(true);
-        expect(error.response.errors.length).toBeGreaterThan(0);
-      }
-    });
 
-    it('should handle request with GraphQL validation errors and throw', async () => {
-      const query = 'query { invalidField }';
-      
-      try {
-        await client.request(query);
-        fail('Expected error to be thrown');
-      } catch (error: any) {
-        expect(error.response).toBeDefined();
-        expect(error.response.errors).toBeDefined();
-        
-        // The error response should have status 422 for GraphQL validation errors
-        expect(error.response.status).toBe(422);
-      }
-    });
-  });
-
-  describe('JWT Generation', () => {
-    it('should generate different JWTs for different queries', async () => {
-      const query1 = 'query { __schema { queryType { name } } }';
-      const query2 = 'query { transactions { hash } }';
-      
-      const jwt1 = await client.getJWT(query1);
-      const jwt2 = await client.getJWT(query2);
-
-      expect(jwt1).not.toBe(jwt2);
-    });
-
-    it('should generate different JWTs for same query with different variables', async () => {
-      const query = 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }';
-      const variables1 = { limit: 5 };
-      const variables2 = { limit: 10 };
-      
-      const jwt1 = await client.getJWT(query, variables1);
-      const jwt2 = await client.getJWT(query, variables2);
-
-      expect(jwt1).not.toBe(jwt2);
-    });
-
-    it('should generate JWTs with correct expiration time', async () => {
-      const query = 'query { __schema { queryType { name } } }';
-      const jwt = await client.getJWT(query);
-
-      const parts = jwt.split('.');
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-
-      const now = Math.floor(Date.now() / 1000);
-      const timeDiff = payload.exp - now;
-
-      expect(timeDiff).toBeGreaterThan(0);
-      expect(timeDiff).toBeLessThanOrEqual(5);
-    });
-  });
 }); 

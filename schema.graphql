@@ -1,24 +1,69 @@
 # GraphQL Schema for Wallet Backend
-# This schema matches the actual wallet-backend implementation
+# Updated schema with full pagination support
 
 # Custom scalars
 scalar Time
 scalar UInt32
 scalar Int64
 
+# GraphQL Query root type - defines all available queries in the API
 type Query {
     transactionByHash(hash: String!): Transaction
-    transactions(limit: Int): [Transaction!]!
+    transactions(first: Int, after: String, last: Int, before: String): TransactionConnection
     account(address: String!): Account
-    operations(limit: Int): [Operation!]!
+    operations(first: Int, after: String, last: Int, before: String): OperationConnection
     stateChanges(limit: Int): [StateChange!]!
 }
 
+# GraphQL Mutation root type - defines all available mutations in the API
 type Mutation {
+    # Account management mutations
     registerAccount(input: RegisterAccountInput!): RegisterAccountPayload!
     deregisterAccount(input: DeregisterAccountInput!): DeregisterAccountPayload!
+    
+    # Transaction mutations
+    buildTransaction(input: BuildTransactionInput!): BuildTransactionPayload!
 }
 
+# Pagination types for cursor-based pagination
+type TransactionConnection {
+    edges: [TransactionEdge!]
+    pageInfo: PageInfo!
+}
+
+type TransactionEdge {
+    node: Transaction
+    cursor: String!
+}
+
+type OperationConnection {
+    edges: [OperationEdge!]
+    pageInfo: PageInfo!
+}
+
+type OperationEdge {
+    node: Operation
+    cursor: String!
+}
+
+type StateChangeConnection {
+    edges: [StateChangeEdge!]
+    pageInfo: PageInfo!
+}
+
+type StateChangeEdge {
+    node: StateChange
+    cursor: String!
+}
+
+type PageInfo {
+    startCursor: String
+    endCursor: String
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+}
+
+# GraphQL Transaction type - represents a blockchain transaction
 type Transaction {
     hash: String!
     envelopeXdr: String!
@@ -27,11 +72,14 @@ type Transaction {
     ledgerNumber: UInt32!
     ledgerCreatedAt: Time!
     ingestedAt: Time!
+    
+    # GraphQL Relationships - these fields require resolvers
     operations: [Operation!]!
     accounts: [Account!]!
     stateChanges: [StateChange!]!
 }
 
+# GraphQL Operation type - represents a blockchain operation
 type Operation {
     id: Int64!
     operationType: OperationType!
@@ -39,26 +87,33 @@ type Operation {
     ledgerNumber: UInt32!
     ledgerCreatedAt: Time!
     ingestedAt: Time!
+    
+    # GraphQL Relationships - these fields use resolvers  
     transaction: Transaction!
     accounts: [Account!]!
     stateChanges: [StateChange!]!
 }
 
+# GraphQL Account type - represents a blockchain account
 type Account {
     address: String!
-    transactions: [Transaction!]!
-    operations: [Operation!]!
-    stateChanges: [StateChange!]!
+
+    # GraphQL Relationships with pagination support
+    transactions(first: Int, after: String, last: Int, before: String): TransactionConnection
+    operations(first: Int, after: String, last: Int, before: String): OperationConnection
+    stateChanges(first: Int, after: String, last: Int, before: String): StateChangeConnection
 }
 
+# GraphQL StateChange type - represents changes to blockchain state
 type StateChange {
-    id: String!
     accountId: String!
     stateChangeCategory: StateChangeCategory!
     stateChangeReason: StateChangeReason
-    ledgerNumber: UInt32!
-    ledgerCreatedAt: Time!
     ingestedAt: Time!
+    ledgerCreatedAt: Time!
+    ledgerNumber: UInt32!
+    
+    # GraphQL Nullable fields
     tokenId: String
     amount: String
     claimableBalanceId: String
@@ -68,14 +123,48 @@ type StateChange {
     spenderAccountId: String
     sponsoredAccountId: String
     sponsorAccountId: String
+    
+    # GraphQL fields for JSONB data
     signerWeights: String
     thresholds: String
     flags: [String!]!
     keyValue: String
-    operation: Operation!
+    
+    # GraphQL Relationships
+    operation: Operation
     transaction: Transaction!
 }
 
+# Input types for account mutations
+input RegisterAccountInput {
+    address: String!
+}
+
+input DeregisterAccountInput {
+    address: String!
+}
+
+# Input types for transaction mutations
+input BuildTransactionInput {
+    transaction: TransactionInput!
+}
+
+input TransactionInput {
+    operations: [String!]!
+    timeout: Int!
+    simulationResult: SimulationResultInput
+}
+
+input SimulationResultInput {
+    transactionData: String
+    events: [String!]
+    minResourceFee: String
+    results: [String!]
+    latestLedger: Int
+    error: String
+}
+
+# Payload types for account mutations
 type RegisterAccountPayload {
     success: Boolean!
     account: Account
@@ -86,14 +175,13 @@ type DeregisterAccountPayload {
     message: String
 }
 
-input RegisterAccountInput {
-    address: String!
+# Payload types for transaction mutations
+type BuildTransactionPayload {
+    success: Boolean!
+    transactionXdr: String!
 }
 
-input DeregisterAccountInput {
-    address: String!
-}
-
+# Enums
 enum OperationType {
     CREATE_ACCOUNT
     PAYMENT
@@ -158,4 +246,4 @@ enum StateChangeReason {
     CONSUME
     DEPLOY
     INVOKE
-} 
+}

@@ -68,8 +68,8 @@ describe('WalletBackendClient', () => {
       },
       {
         name: 'named query with variables',
-        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
-        variables: { limit: 5 }
+        query: 'query GetTransactions($first: Int) { transactions(first: $first) { edges { node { hash } } } }',
+        variables: { first: 5 }
       }
     ])('should generate a JWT for $name', async ({ query, variables }) => {
       const jwt = await client.getJWT(query, variables);
@@ -81,7 +81,7 @@ describe('WalletBackendClient', () => {
 
     it('should generate different JWTs for different queries', async () => {
       const query1 = 'query { __schema { queryType { name } } }';
-      const query2 = 'query { transactions { hash } }';
+      const query2 = 'query { transactions(first: 5) { edges { node { hash } } } }';
       
       const jwt1 = await client.getJWT(query1);
       const jwt2 = await client.getJWT(query2);
@@ -107,10 +107,10 @@ describe('WalletBackendClient', () => {
       },
       {
         name: 'named query with variables',
-        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
-        variables: { limit: 5 },
+        query: 'query GetTransactions($first: Int) { transactions(first: $first) { edges { node { hash } } } }',
+        variables: { first: 5 },
         operationName: 'GetTransactions',
-        expectedData: { transactions: [{ hash: 'test-hash' }] }
+        expectedData: { transactions: { edges: [{ node: { hash: 'test-hash' } }] } }
       }
     ])('should make a GraphQL request with authentication for $name', async ({ query, variables, operationName, expectedData }) => {
       mockRequest.mockResolvedValue(expectedData);
@@ -143,9 +143,9 @@ describe('WalletBackendClient', () => {
       },
       {
         name: 'named query with variables without auth',
-        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
-        variables: { limit: 5 },
-        expectedData: { transactions: [{ hash: 'test-hash' }] }
+        query: 'query GetTransactions($first: Int) { transactions(first: $first) { edges { node { hash } } } }',
+        variables: { first: 5 },
+        expectedData: { transactions: { edges: [{ node: { hash: 'test-hash' } }] } }
       }
     ])('should make a GraphQL request without authentication for $name', async ({ query, variables, expectedData }) => {
       mockRequestNoAuth.mockResolvedValue(expectedData);
@@ -179,11 +179,11 @@ describe('WalletBackendClient', () => {
       },
       {
         name: 'named query with variables',
-        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
-        variables: { limit: 5 },
+        query: 'query GetTransactions($first: Int) { transactions(first: $first) { edges { node { hash } } } }',
+        variables: { first: 5 },
         operationName: 'GetTransactions',
         expectedResponse: {
-          data: { transactions: [{ hash: 'test-hash' }] },
+          data: { transactions: { edges: [{ node: { hash: 'test-hash' } }] } },
           errors: undefined
         }
       },
@@ -223,10 +223,10 @@ describe('WalletBackendClient', () => {
       },
       {
         name: 'named query with variables without auth',
-        query: 'query GetTransactions($limit: Int) { transactions(limit: $limit) { hash } }',
-        variables: { limit: 5 },
+        query: 'query GetTransactions($first: Int) { transactions(first: $first) { edges { node { hash } } } }',
+        variables: { first: 5 },
         expectedResponse: {
-          data: { transactions: [{ hash: 'test-hash' }] },
+          data: { transactions: { edges: [{ node: { hash: 'test-hash' } }] } },
           errors: undefined
         }
       }

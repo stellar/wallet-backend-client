@@ -21,9 +21,43 @@ export type Scalars = {
 export type Account = {
   __typename?: 'Account';
   address: Scalars['String']['output'];
-  operations: Array<Operation>;
-  stateChanges: Array<StateChange>;
-  transactions: Array<Transaction>;
+  operations?: Maybe<OperationConnection>;
+  stateChanges?: Maybe<StateChangeConnection>;
+  transactions?: Maybe<TransactionConnection>;
+};
+
+
+export type AccountOperationsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type AccountStateChangesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type AccountTransactionsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type BuildTransactionInput = {
+  transaction: TransactionInput;
+};
+
+export type BuildTransactionPayload = {
+  __typename?: 'BuildTransactionPayload';
+  success: Scalars['Boolean']['output'];
+  transactionXdr: Scalars['String']['output'];
 };
 
 export type DeregisterAccountInput = {
@@ -38,8 +72,14 @@ export type DeregisterAccountPayload = {
 
 export type Mutation = {
   __typename?: 'Mutation';
+  buildTransaction: BuildTransactionPayload;
   deregisterAccount: DeregisterAccountPayload;
   registerAccount: RegisterAccountPayload;
+};
+
+
+export type MutationBuildTransactionArgs = {
+  input: BuildTransactionInput;
 };
 
 
@@ -63,6 +103,18 @@ export type Operation = {
   operationXdr: Scalars['String']['output'];
   stateChanges: Array<StateChange>;
   transaction: Transaction;
+};
+
+export type OperationConnection = {
+  __typename?: 'OperationConnection';
+  edges?: Maybe<Array<OperationEdge>>;
+  pageInfo: PageInfo;
+};
+
+export type OperationEdge = {
+  __typename?: 'OperationEdge';
+  cursor: Scalars['String']['output'];
+  node?: Maybe<Operation>;
 };
 
 export enum OperationType {
@@ -95,13 +147,21 @@ export enum OperationType {
   SetTrustLineFlags = 'SET_TRUST_LINE_FLAGS'
 }
 
+export type PageInfo = {
+  __typename?: 'PageInfo';
+  endCursor?: Maybe<Scalars['String']['output']>;
+  hasNextPage: Scalars['Boolean']['output'];
+  hasPreviousPage: Scalars['Boolean']['output'];
+  startCursor?: Maybe<Scalars['String']['output']>;
+};
+
 export type Query = {
   __typename?: 'Query';
   account?: Maybe<Account>;
-  operations: Array<Operation>;
+  operations?: Maybe<OperationConnection>;
   stateChanges: Array<StateChange>;
   transactionByHash?: Maybe<Transaction>;
-  transactions: Array<Transaction>;
+  transactions?: Maybe<TransactionConnection>;
 };
 
 
@@ -111,7 +171,10 @@ export type QueryAccountArgs = {
 
 
 export type QueryOperationsArgs = {
-  limit?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -126,7 +189,10 @@ export type QueryTransactionByHashArgs = {
 
 
 export type QueryTransactionsArgs = {
-  limit?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type RegisterAccountInput = {
@@ -139,20 +205,28 @@ export type RegisterAccountPayload = {
   success: Scalars['Boolean']['output'];
 };
 
+export type SimulationResultInput = {
+  error?: InputMaybe<Scalars['String']['input']>;
+  events?: InputMaybe<Array<Scalars['String']['input']>>;
+  latestLedger?: InputMaybe<Scalars['Int']['input']>;
+  minResourceFee?: InputMaybe<Scalars['String']['input']>;
+  results?: InputMaybe<Array<Scalars['String']['input']>>;
+  transactionData?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type StateChange = {
   __typename?: 'StateChange';
   accountId: Scalars['String']['output'];
   amount?: Maybe<Scalars['String']['output']>;
   claimableBalanceId?: Maybe<Scalars['String']['output']>;
   flags: Array<Scalars['String']['output']>;
-  id: Scalars['String']['output'];
   ingestedAt: Scalars['Time']['output'];
   keyValue?: Maybe<Scalars['String']['output']>;
   ledgerCreatedAt: Scalars['Time']['output'];
   ledgerNumber: Scalars['UInt32']['output'];
   liquidityPoolId?: Maybe<Scalars['String']['output']>;
   offerId?: Maybe<Scalars['String']['output']>;
-  operation: Operation;
+  operation?: Maybe<Operation>;
   signerAccountId?: Maybe<Scalars['String']['output']>;
   signerWeights?: Maybe<Scalars['String']['output']>;
   spenderAccountId?: Maybe<Scalars['String']['output']>;
@@ -182,6 +256,18 @@ export enum StateChangeCategory {
   TrustlineFlags = 'TRUSTLINE_FLAGS',
   Unsupported = 'UNSUPPORTED'
 }
+
+export type StateChangeConnection = {
+  __typename?: 'StateChangeConnection';
+  edges?: Maybe<Array<StateChangeEdge>>;
+  pageInfo: PageInfo;
+};
+
+export type StateChangeEdge = {
+  __typename?: 'StateChangeEdge';
+  cursor: Scalars['String']['output'];
+  node?: Maybe<StateChange>;
+};
 
 export enum StateChangeReason {
   Add = 'ADD',
@@ -213,4 +299,22 @@ export type Transaction = {
   operations: Array<Operation>;
   resultXdr: Scalars['String']['output'];
   stateChanges: Array<StateChange>;
+};
+
+export type TransactionConnection = {
+  __typename?: 'TransactionConnection';
+  edges?: Maybe<Array<TransactionEdge>>;
+  pageInfo: PageInfo;
+};
+
+export type TransactionEdge = {
+  __typename?: 'TransactionEdge';
+  cursor: Scalars['String']['output'];
+  node?: Maybe<Transaction>;
+};
+
+export type TransactionInput = {
+  operations: Array<Scalars['String']['input']>;
+  simulationResult?: InputMaybe<SimulationResultInput>;
+  timeout: Scalars['Int']['input'];
 };
