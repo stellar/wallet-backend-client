@@ -101,8 +101,16 @@ export type Operation = {
   ledgerNumber: Scalars['UInt32']['output'];
   operationType: OperationType;
   operationXdr: Scalars['String']['output'];
-  stateChanges: Array<StateChange>;
+  stateChanges?: Maybe<StateChangeConnection>;
   transaction: Transaction;
+};
+
+
+export type OperationStateChangesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type OperationConnection = {
@@ -157,16 +165,22 @@ export type PageInfo = {
 
 export type Query = {
   __typename?: 'Query';
-  account?: Maybe<Account>;
+  accountByAddress?: Maybe<Account>;
+  operationById?: Maybe<Operation>;
   operations?: Maybe<OperationConnection>;
-  stateChanges: Array<StateChange>;
+  stateChanges?: Maybe<StateChangeConnection>;
   transactionByHash?: Maybe<Transaction>;
   transactions?: Maybe<TransactionConnection>;
 };
 
 
-export type QueryAccountArgs = {
+export type QueryAccountByAddressArgs = {
   address: Scalars['String']['input'];
+};
+
+
+export type QueryOperationByIdArgs = {
+  id: Scalars['Int64']['input'];
 };
 
 
@@ -179,7 +193,10 @@ export type QueryOperationsArgs = {
 
 
 export type QueryStateChangesArgs = {
-  limit?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -296,9 +313,25 @@ export type Transaction = {
   ledgerCreatedAt: Scalars['Time']['output'];
   ledgerNumber: Scalars['UInt32']['output'];
   metaXdr: Scalars['String']['output'];
-  operations: Array<Operation>;
+  operations?: Maybe<OperationConnection>;
   resultXdr: Scalars['String']['output'];
-  stateChanges: Array<StateChange>;
+  stateChanges?: Maybe<StateChangeConnection>;
+};
+
+
+export type TransactionOperationsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type TransactionStateChangesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type TransactionConnection = {

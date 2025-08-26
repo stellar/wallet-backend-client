@@ -10,9 +10,10 @@ scalar Int64
 type Query {
     transactionByHash(hash: String!): Transaction
     transactions(first: Int, after: String, last: Int, before: String): TransactionConnection
-    account(address: String!): Account
+    accountByAddress(address: String!): Account
     operations(first: Int, after: String, last: Int, before: String): OperationConnection
-    stateChanges(limit: Int): [StateChange!]!
+    operationById(id: Int64!): Operation
+    stateChanges(first: Int, after: String, last: Int, before: String): StateChangeConnection
 }
 
 # GraphQL Mutation root type - defines all available mutations in the API
@@ -74,9 +75,9 @@ type Transaction {
     ingestedAt: Time!
     
     # GraphQL Relationships - these fields require resolvers
-    operations: [Operation!]!
+    operations(first: Int, after: String, last: Int, before: String): OperationConnection
     accounts: [Account!]!
-    stateChanges: [StateChange!]!
+    stateChanges(first: Int, after: String, last: Int, before: String): StateChangeConnection
 }
 
 # GraphQL Operation type - represents a blockchain operation
@@ -91,7 +92,7 @@ type Operation {
     # GraphQL Relationships - these fields use resolvers  
     transaction: Transaction!
     accounts: [Account!]!
-    stateChanges: [StateChange!]!
+    stateChanges(first: Int, after: String, last: Int, before: String): StateChangeConnection
 }
 
 # GraphQL Account type - represents a blockchain account

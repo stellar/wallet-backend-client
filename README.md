@@ -90,7 +90,7 @@ console.log(data.transactions.edges.map(edge => edge.node));
 ```typescript
 const GET_ACCOUNT = `
   query GetAccount($address: String!, $first: Int) {
-    account(address: $address) {
+    accountByAddress(address: $address) {
       address
       transactions(first: $first) {
         edges {
