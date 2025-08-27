@@ -1,0 +1,252 @@
+import { WalletBackendClient } from '../src/graphql-client';
+import { GraphQLClient } from 'graphql-request';
+import * as crypto from 'crypto';
+
+// Mock graphql-request
+jest.mock('graphql-request');
+
+describe('WalletBackendClient', () => {
+  let client: WalletBackendClient;
+  let clientNoAuth: WalletBackendClient;
+  
+  // Unit tests use arbitrary values since they don't interact with real backend
+  const testPrivateKey = 'SDFCVJQCCN3BVKHYS5MIE6OJCAGCE3KCZWZDXD2AMZUJ5Z4J7YTOPSOC';
+  const testBaseUrl = 'http://test.example.com:1234/graphql/query';
+
+  let mockRequest: jest.MockedFunction<any>;
+  let mockRawRequest: jest.MockedFunction<any>;
+  let mockRequestNoAuth: jest.MockedFunction<any>;
+  let mockRawRequestNoAuth: jest.MockedFunction<any>;
+
+  // Helper function to validate JWT body hash
+  const validateJwtBodyHash = (mockCall: any, query: string, variables?: any, operationName?: string) => {
+    const authHeader = mockCall.mock.calls[0][2]['Authorization'];
+    const jwt = authHeader.replace('Bearer ', '');
+    const parts = jwt.split('.');
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+    
+    const expectedBody = JSON.stringify({ query, ...(variables && { variables }), ...(operationName && { operationName }) });
+    const expectedHash = crypto.createHash('sha256').update(expectedBody).digest('hex');
+    expect(payload.bodyHash).toBe(expectedHash);
+  };
+
+  beforeEach(() => {
+    // Clear all mocks
+    jest.clearAllMocks();
+    
+    // Mock GraphQLClient constructor
+    (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mockImplementation(() => ({
+      request: jest.fn(),
+      rawRequest: jest.fn(),
+    } as any));
+
+    // Create client with auth
+    client = new WalletBackendClient(testBaseUrl, { authKey: testPrivateKey });
+    
+    // Create client without auth
+    clientNoAuth = new WalletBackendClient(testBaseUrl);
+    
+    // Get references to the mocked methods for authenticated client
+    const mockGraphQLClient = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[0].value as any;
+    mockRequest = mockGraphQLClient.request;
+    mockRawRequest = mockGraphQLClient.rawRequest;
+    
+    // Get references to the mocked methods for non-authenticated client
+    const mockGraphQLClientNoAuth = (GraphQLClient as jest.MockedClass<typeof GraphQLClient>).mock.results[1].value as any;
+    mockRequestNoAuth = mockGraphQLClientNoAuth.request;
+    mockRawRequestNoAuth = mockGraphQLClientNoAuth.rawRequest;
+  });
+
+
+
+  describe('getJWT', () => {
+    it.each([
+      {
+        name: 'anonymous query',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined
+      },
+      {
+        name: 'named query with variables',
+        query: 'query GetTransactions($first: Int) { transactions(first: $first) { edges { node { hash } } } }',
+        variables: { first: 5 }
+      }
+    ])('should generate a JWT for $name', async ({ query, variables }) => {
+      const jwt = await client.getJWT(query, variables);
+
+      expect(jwt).toBeDefined();
+      expect(typeof jwt).toBe('string');
+      expect(jwt.split('.')).toHaveLength(3);
+    });
+
+    it('should generate different JWTs for different queries', async () => {
+      const query1 = 'query { __schema { queryType { name } } }';
+      const query2 = 'query { transactions(first: 5) { edges { node { hash } } } }';
+      
+      const jwt1 = await client.getJWT(query1);
+      const jwt2 = await client.getJWT(query2);
+
+      expect(jwt1).not.toBe(jwt2);
+    });
+
+    it('should throw error when no authKey provided', async () => {
+      const query = 'query { __schema { queryType { name } } }';
+      
+      await expect(clientNoAuth.getJWT(query)).rejects.toThrow('Cannot generate JWT: no authKey provided during client initialization');
+    });
+  });
+
+  describe('request', () => {
+    it.each([
+      {
+        name: 'anonymous query',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined,
+        operationName: undefined,
+        expectedData: { __schema: { queryType: { name: 'Query' } } }
+      },
+      {
+        name: 'named query with variables',
+        query: 'query GetTransactions($first: Int) { transactions(first: $first) { edges { node { hash } } } }',
+        variables: { first: 5 },
+        operationName: 'GetTransactions',
+        expectedData: { transactions: { edges: [{ node: { hash: 'test-hash' } }] } }
+      }
+    ])('should make a GraphQL request with authentication for $name', async ({ query, variables, operationName, expectedData }) => {
+      mockRequest.mockResolvedValue(expectedData);
+
+      const result = await client.request(query, variables);
+
+      expect(mockRequest).toHaveBeenCalledWith(query, variables, expect.objectContaining({
+        'Authorization': expect.stringMatching(/^Bearer /),
+        'Content-Type': 'application/json',
+      }));
+      
+      validateJwtBodyHash(mockRequest, query, variables, operationName);
+      expect(result).toEqual(expectedData);
+    });
+
+    it('should throw error when GraphQL request fails', async () => {
+      const query = 'query { invalid }';
+      const error = new Error('GraphQL Error');
+      mockRequest.mockRejectedValue(error);
+
+      await expect(client.request(query)).rejects.toThrow('GraphQL Error');
+    });
+
+    it.each([
+      {
+        name: 'anonymous query without auth',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined,
+        expectedData: { __schema: { queryType: { name: 'Query' } } }
+      },
+      {
+        name: 'named query with variables without auth',
+        query: 'query GetTransactions($first: Int) { transactions(first: $first) { edges { node { hash } } } }',
+        variables: { first: 5 },
+        expectedData: { transactions: { edges: [{ node: { hash: 'test-hash' } }] } }
+      }
+    ])('should make a GraphQL request without authentication for $name', async ({ query, variables, expectedData }) => {
+      mockRequestNoAuth.mockResolvedValue(expectedData);
+
+      const result = await clientNoAuth.request(query, variables);
+
+      expect(mockRequestNoAuth).toHaveBeenCalledWith(query, variables, expect.objectContaining({
+        'Content-Type': 'application/json',
+      }));
+      
+      // Verify no Authorization header is present
+      expect(mockRequestNoAuth).toHaveBeenCalledWith(query, variables, expect.not.objectContaining({
+        'Authorization': expect.anything(),
+      }));
+      
+      expect(result).toEqual(expectedData);
+    });
+  });
+
+  describe('rawRequest', () => {
+    it.each([
+      {
+        name: 'anonymous query',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined,
+        operationName: undefined,
+        expectedResponse: {
+          data: { __schema: { queryType: { name: 'Query' } } },
+          errors: undefined
+        }
+      },
+      {
+        name: 'named query with variables',
+        query: 'query GetTransactions($first: Int) { transactions(first: $first) { edges { node { hash } } } }',
+        variables: { first: 5 },
+        operationName: 'GetTransactions',
+        expectedResponse: {
+          data: { transactions: { edges: [{ node: { hash: 'test-hash' } }] } },
+          errors: undefined
+        }
+      },
+      {
+        name: 'query with errors',
+        query: 'query { invalid }',
+        variables: undefined,
+        operationName: undefined,
+        expectedResponse: {
+          data: null,
+          errors: [{ message: 'Field "invalid" of type "Query" does not exist.' }]
+        }
+      }
+    ])('should make a raw GraphQL request with authentication for $name', async ({ query, variables, operationName, expectedResponse }) => {
+      mockRawRequest.mockResolvedValue(expectedResponse);
+
+      const result = await client.rawRequest(query, variables);
+
+      expect(mockRawRequest).toHaveBeenCalledWith(query, variables, expect.objectContaining({
+        'Authorization': expect.stringMatching(/^Bearer /),
+        'Content-Type': 'application/json',
+      }));
+      
+      validateJwtBodyHash(mockRawRequest, query, variables, operationName);
+      expect(result).toEqual(expectedResponse);
+    });
+
+    it.each([
+      {
+        name: 'anonymous query without auth',
+        query: 'query { __schema { queryType { name } } }',
+        variables: undefined,
+        expectedResponse: {
+          data: { __schema: { queryType: { name: 'Query' } } },
+          errors: undefined
+        }
+      },
+      {
+        name: 'named query with variables without auth',
+        query: 'query GetTransactions($first: Int) { transactions(first: $first) { edges { node { hash } } } }',
+        variables: { first: 5 },
+        expectedResponse: {
+          data: { transactions: { edges: [{ node: { hash: 'test-hash' } }] } },
+          errors: undefined
+        }
+      }
+    ])('should make a raw GraphQL request without authentication for $name', async ({ query, variables, expectedResponse }) => {
+      mockRawRequestNoAuth.mockResolvedValue(expectedResponse);
+
+      const result = await clientNoAuth.rawRequest(query, variables);
+
+      expect(mockRawRequestNoAuth).toHaveBeenCalledWith(query, variables, expect.objectContaining({
+        'Content-Type': 'application/json',
+      }));
+      
+      // Verify no Authorization header is present
+      expect(mockRawRequestNoAuth).toHaveBeenCalledWith(query, variables, expect.not.objectContaining({
+        'Authorization': expect.anything(),
+      }));
+      
+      expect(result).toEqual(expectedResponse);
+    });
+  });
+
+
+}); 
