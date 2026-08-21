@@ -2,6 +2,8 @@
 
 A universal TypeScript GraphQL client for the Stellar Wallet Backend with optional JWT authentication. Works seamlessly in Node.js, browsers, React, and React Native environments.
 
+> **Security Policy**: This repository is **out of scope** for the [Stellar HackerOne program](https://hackerone.com/stellar). It is **not currently under active development**. Please do not submit vulnerability reports against this repository.
+
 ## Installation
 
 ```bash
